@@ -8,7 +8,7 @@ The goal of the proposal is to move from a single administrative user account to
 
 # Proposal
 
-|Account Type|Account Name|Access Type|Database Name(s)
+|Account Type|Account Name|Access Type|Database Access|
 |---|---|---|---|
 |Server Admin|prime|Read/Write|All|
 |Developer Admin|<dev_name>_admin|Read/Write|prime_data_hub|

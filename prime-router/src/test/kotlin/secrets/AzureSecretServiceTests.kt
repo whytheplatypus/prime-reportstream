@@ -1,7 +1,7 @@
 package gov.cdc.prime.router.secrets
 
 import com.azure.core.credential.TokenCredential
-import com.azure.security.keyvault.secrets.SecretClient
+import com.azure.security.keyvault.secrets.SecretAsyncClient
 import com.azure.security.keyvault.secrets.SecretClientBuilder
 import com.azure.security.keyvault.secrets.models.KeyVaultSecret
 import io.mockk.every
@@ -10,6 +10,7 @@ import io.mockk.mockkClass
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.verify
+import reactor.core.publisher.Mono
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -17,7 +18,7 @@ import kotlin.test.assertEquals
 
 internal class AzureSecretServiceTests {
     private val secretService = spyk(AzureSecretService, recordPrivateCalls = true)
-    private val secretClient = mockk<SecretClient>()
+    private val secretClient = mockk<SecretAsyncClient>()
 
     @BeforeTest
     fun setUp() {
@@ -35,7 +36,7 @@ internal class AzureSecretServiceTests {
         val secretClientBuilder = mockkClass(SecretClientBuilder::class)
         every { secretClientBuilder.vaultUrl(any()) } returns secretClientBuilder
         every { secretClientBuilder.credential(any()) } returns secretClientBuilder
-        every { secretClientBuilder.buildClient() } returns secretClient
+        every { secretClientBuilder.buildAsyncClient() } returns secretClient
 
         val mockAzureCredential = mockkClass(TokenCredential::class)
 
@@ -50,7 +51,9 @@ internal class AzureSecretServiceTests {
 
     @Test
     fun `uses Key Vault to retrieve a secret`() {
-        every { secretClient.getSecret(any()) } returns KeyVaultSecret("functionapp-secret-name", "From Azure")
+        every { secretClient.getSecret(any()) } returns Mono.just(
+            KeyVaultSecret("functionapp-secret-name", "From Azure")
+        )
         val secret = secretService.fetchSecret("SECRET_NAME")
         assertEquals("From Azure", secret, "Expected secret not returned")
     }

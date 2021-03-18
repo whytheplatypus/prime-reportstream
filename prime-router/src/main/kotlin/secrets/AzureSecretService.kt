@@ -2,7 +2,7 @@ package gov.cdc.prime.router.secrets
 
 import com.azure.core.credential.TokenCredential
 import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.security.keyvault.secrets.SecretClient
+import com.azure.security.keyvault.secrets.SecretAsyncClient
 import com.azure.security.keyvault.secrets.SecretClientBuilder
 
 internal object AzureSecretService : SecretService() {
@@ -12,16 +12,16 @@ internal object AzureSecretService : SecretService() {
     internal fun initSecretClient(
         secretClientBuilder: SecretClientBuilder = SecretClientBuilder(),
         credential: TokenCredential = DefaultAzureCredentialBuilder().build()
-    ): SecretClient {
+    ): SecretAsyncClient? {
         return secretClientBuilder
             .vaultUrl("https://$KEY_VAULT_NAME.vault.azure.net")
             .credential(credential)
-            .buildClient()
+            .buildAsyncClient()
     }
 
     override fun fetchSecretFromStore(secretName: String): String? {
         val azureSafeSecretName = secretName.toLowerCase().replace("_", "-")
-        return secretClient.getSecret(azureSafeSecretName)?.let {
+        return secretClient?.getSecret(azureSafeSecretName)?.block()?.let {
             return it.value
         }
     }

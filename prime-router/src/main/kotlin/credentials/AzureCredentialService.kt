@@ -2,7 +2,7 @@ package gov.cdc.prime.router.credentials
 
 import com.azure.core.credential.TokenCredential
 import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.security.keyvault.secrets.SecretClient
+import com.azure.security.keyvault.secrets.SecretAsyncClient
 import com.azure.security.keyvault.secrets.SecretClientBuilder
 
 internal object AzureCredentialService : CredentialService() {
@@ -13,21 +13,21 @@ internal object AzureCredentialService : CredentialService() {
     internal fun initSecretClient(
         secretClientBuilder: SecretClientBuilder = SecretClientBuilder(),
         credential: TokenCredential = DefaultAzureCredentialBuilder().build()
-    ): SecretClient {
+    ): SecretAsyncClient? {
         return secretClientBuilder
             .vaultUrl("https://$KEY_VAULT_NAME.vault.azure.net")
             .credential(credential)
-            .buildClient()
+            .buildAsyncClient()
     }
 
     override fun fetchCredential(connectionId: String): Credential? {
-        return secretClient.getSecret("$connectionId")?.let {
+        return secretClient?.getSecret("$connectionId")?.block()?.let {
             return Credential.fromJSON(it.value)
         }
     }
 
     override fun saveCredential(connectionId: String, credential: Credential) {
-        secretClient.setSecret("$connectionId", credential.toJSON())
+        secretClient?.setSecret("$connectionId", credential.toJSON())?.block()
             ?: throw Exception("Failed to save credentials for: $connectionId")
     }
 }

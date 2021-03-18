@@ -1,7 +1,7 @@
 package gov.cdc.prime.router.credentials
 
 import com.azure.core.credential.TokenCredential
-import com.azure.security.keyvault.secrets.SecretClient
+import com.azure.security.keyvault.secrets.SecretAsyncClient
 import com.azure.security.keyvault.secrets.SecretClientBuilder
 import com.azure.security.keyvault.secrets.models.KeyVaultSecret
 import io.mockk.every
@@ -10,6 +10,7 @@ import io.mockk.mockkClass
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.verify
+import reactor.core.publisher.Mono
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -19,7 +20,7 @@ import kotlin.test.fail
 internal class AzureCredentialServiceTests {
 
     private val credentialService = spyk(AzureCredentialService, recordPrivateCalls = true)
-    private val secretClient = mockk<SecretClient>()
+    private val secretClient = mockk<SecretAsyncClient>()
 
     @BeforeTest
     fun setUp() {
@@ -37,7 +38,7 @@ internal class AzureCredentialServiceTests {
         val secretClientBuilder = mockkClass(SecretClientBuilder::class)
         every { secretClientBuilder.vaultUrl(any()) } returns secretClientBuilder
         every { secretClientBuilder.credential(any()) } returns secretClientBuilder
-        every { secretClientBuilder.buildClient() } returns secretClient
+        every { secretClientBuilder.buildAsyncClient() } returns secretClient
 
         val mockAzureCredential = mockkClass(TokenCredential::class)
 
@@ -52,7 +53,9 @@ internal class AzureCredentialServiceTests {
 
     @Test
     fun `uses Key Vault to retrieve a secret`() {
-        every { secretClient.getSecret(any()) } returns KeyVaultSecret("$CONNECTION_ID", VALID_CREDENTIAL_JSON)
+        every { secretClient.getSecret(any()) } returns Mono.just(
+            KeyVaultSecret("$CONNECTION_ID", VALID_CREDENTIAL_JSON)
+        )
         val credential = credentialService.fetchCredential(
             CONNECTION_ID, CALLER_ID, CredentialRequestReason.AUTOMATED_TEST
         )
@@ -61,7 +64,7 @@ internal class AzureCredentialServiceTests {
 
     @Test
     fun `uses Key Vault to persist a secret`() {
-        every { secretClient.setSecret(any(), any()) } returns mockkClass(KeyVaultSecret::class)
+        every { secretClient.setSecret(any(), any()) } returns Mono.just(mockkClass(KeyVaultSecret::class))
         credentialService.saveCredential(CONNECTION_ID, VALID_CREDENTIAL, CALLER_ID)
         verify { secretClient.setSecret("$CONNECTION_ID", VALID_CREDENTIAL_JSON) }
     }

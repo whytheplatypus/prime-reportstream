@@ -197,7 +197,6 @@ class GetSummaryTests: BaseHistoryFunction() {
         context: ExecutionContext
     ): HttpResponseMessage {
         return GetSummaryTests( request, context); 
-  
     }
 }
 
@@ -305,11 +304,13 @@ open class BaseHistoryFunction {
                 OffsetDateTime.now().minusDays(DAYS_TO_SHOW), 
                 authClaims.organization.name
             )
+
+
             var daily: Long = 0L
             var last : Long = 0L;
             var sum : Long = 0L;
             var data : Array<Long> = arrayOf(0,0,0,0,0,0,0,0)
-
+ 
             @Suppress( "NEW_INFERENCE_NO_INFORMATION_FOR_PARAMETER" )
             headers.sortedByDescending{ it.createdAt }.forEach {
                 if( isToday( it.createdAt ) ) daily += it.itemCount.toLong();
@@ -319,11 +320,11 @@ open class BaseHistoryFunction {
                 data.set(expires, data.get(expires) + it.itemCount.toLong()); 
             }
 
-            val avg = sum / headers.size;
+            val avg = if( headers.size >0 ) sum / headers.size else 0;
 
             var card = CardView.Builder()
                         .id( "summary-tests")
-                        .title("Summay tests")
+                        .title("Summary tests")
                         .subtitle("summary tests")
                         .daily(daily)
                         .last( last )
@@ -336,14 +337,15 @@ open class BaseHistoryFunction {
                         .body( card )
                         .build();
 
-        } 
+         } 
         catch (ex: Exception) {
             context.logger.log(Level.WARNING, "Exception during download of summary/tests", ex)
             response = request.createResponseBuilder(HttpStatus.NOT_FOUND)
-                .body("File not found")
+                .body(ex.toString())
                 .header("Content-Type", "text/html")
                 .build()
         }           
+
         return response;
     }
 

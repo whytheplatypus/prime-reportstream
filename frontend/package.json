@@ -23,7 +23,9 @@
     "prebuild": "npm -s run clean",
     "build": "eleventy --config eleventy.config.js",
     "watch": "eleventy --watch --config eleventy.config.js",
-    "serve": "eleventy --serve --config eleventy.config.js"
+    "serve": "eleventy --serve --config eleventy.config.js",
+    "cypress:run": "cypress run --project ./test",
+    "cypress:open": "cypress open"
   },
   "jshintConfig": {
     "undef": true,
@@ -40,7 +42,11 @@
       "OktaSignIn": true,
       "download": true,
       "console": true,
-      "Chart": true
+      "Chart": true,
+      "describe": true,
+      "it": true,
+      "cy": true,
+      "before": true
     }
   }
 }

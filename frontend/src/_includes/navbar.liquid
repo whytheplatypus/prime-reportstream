@@ -13,10 +13,10 @@
       <button class="usa-nav__close"><img src="/assets/img/close.svg" role="img" alt="close"></button>
       <ul class="usa-nav__primary font-sans-md">
         <li id="navmenu" class="usa-nav__primary-item {% if title == "Daily data" %}usa-current{% endif %}">
-          <a class="usa-nav__link" href="/daily-data/"><span>Daily data</span></a>
+          <a id="daily-data" class="usa-nav__link" href="/daily-data/"><span>Daily data</span></a>
         </li>
         <li class="usa-nav__primary-item {% if documentation %}usa-current{% endif %}">
-          <a class="usa-nav__link" href="{{ site.documentationPath }}"><span>Documentation</span></a>
+          <a id="documentation" class="usa-nav__link" href="{{ site.documentationPath }}"><span>Documentation</span></a>
         </li>
       </ul>
       {% unless hide_signin %}

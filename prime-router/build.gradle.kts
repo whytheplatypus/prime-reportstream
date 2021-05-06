@@ -95,8 +95,11 @@ tasks.jar {
     manifest {
         /* We put the CLI main class in the manifest at this step as a convenience to allow this jar to be
         run by the ./prime script. It will be overwritten by the Azure host or the CLI fat jar package. */
-        attributes("Main-Class" to primeMainClass)
-        attributes("Multi-Release" to true)
+        attributes(
+            "Main-Class" to primeMainClass,
+            "Multi-Release" to true,
+            "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(separator = " ") { it.name }
+        )
     }
 }
 

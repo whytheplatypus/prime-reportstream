@@ -273,10 +273,19 @@ class Hl7Serializer(val metadata: Metadata) {
         row: Int,
         processingId: String = "T",
     ) {
+        fun getValue(value: String, type: Element.Type? = null, hl7Field: String, truncate: Boolean): String {
+            return if (
+                value.length > HD_TRUNCATION_LIMIT &&
+                type == Element.Type.TEXT &&
+                hl7Field in HD_FIELDS && truncate
+            ) {
+                value.substring(0, HD_TRUNCATION_LIMIT)
+            } else {
+                value
+            }
+        }
         // set up our configuration
         val hl7Config = report.destination?.translation as? Hl7Configuration
-        val suppressQst = hl7Config?.suppressQstForAoe ?: false
-        val suppressAoe = hl7Config?.suppressAoe ?: false
         // and we have some fields to suppress
         val suppressedFields = hl7Config
             ?.suppressHl7Fields
@@ -325,64 +334,45 @@ class Hl7Serializer(val metadata: Metadata) {
                     // some of our schema elements are actually subcomponents of the HL7 fields, and are individually
                     // text, but need to be truncated because they're the first part of an HD field. For example,
                     // ORC-2-2 and ORC-3-2, so we are manually pulling them aside to truncate them
-                    val truncatedValue = if (
-                        value.length > HD_TRUNCATION_LIMIT &&
-                        element.type == Element.Type.TEXT &&
-                        hl7Field in HD_FIELDS &&
-                        hl7Config?.truncateHDNamespaceIds == true
-                    ) {
-                        value.substring(0, HD_TRUNCATION_LIMIT)
-                    } else {
-                        value
-                    }
-                    if (element.hl7Field != null && element.mapperRef != null && element.type == Element.Type.TABLE) {
-                        setComponentForTable(terser, element, hl7Field, report, row)
-                    } else {
-                        setComponent(terser, element, hl7Field, truncatedValue, report)
-                    }
+                    val truncatedValue = getValue(
+                        value,
+                        element.type,
+                        hl7Field,
+                        hl7Config?.truncateHDNamespaceIds ?: false
+                    )
+                    aoeSequence = setComponentValue(
+                        terser,
+                        element,
+                        hl7Field,
+                        truncatedValue,
+                        report,
+                        row,
+                        hl7Config,
+                        processingId,
+                        aoeSequence
+                    )
                 }
-            } else if (element.hl7Field == "AOE" && element.type == Element.Type.NUMBER && !suppressAoe) {
-                if (value.isNotBlank()) {
-                    val units = report.getString(row, "${element.name}_units")
-                    val date = report.getString(row, "specimen_collection_date_time") ?: ""
-                    setAOE(terser, element, aoeSequence++, date, value, report, row, units, suppressQst)
-                }
-            } else if (element.hl7Field == "AOE" && !suppressAoe) {
-                if (value.isNotBlank()) {
-                    val date = report.getString(row, "specimen_collection_date_time") ?: ""
-                    setAOE(terser, element, aoeSequence++, date, value, report, row, suppressQst = suppressQst)
-                } else {
-                    // if the value is null but we're defaulting
-                    if (hl7Config?.defaultAoeToUnknown == true) {
-                        val date = report.getString(row, "specimen_collection_date_time") ?: ""
-                        setAOE(terser, element, aoeSequence++, date, "UNK", report, row, suppressQst = suppressQst)
-                    }
-                }
-            } else if (element.hl7Field == "NTE-3") {
-                setNote(terser, value)
-            } else if (element.hl7Field == "MSH-7") {
-                setComponent(terser, element, "MSH-7", formatter.format(report.createdDateTime), report)
-            } else if (element.hl7Field == "MSH-11") {
-                setComponent(terser, element, "MSH-11", processingId, report)
-            } else if (element.hl7Field != null && element.mapperRef != null && element.type == Element.Type.TABLE) {
-                setComponentForTable(terser, element, report, row)
-            } else if (
-                element.type == Element.Type.TEXT && !element.hl7Field.isNullOrEmpty() && element.hl7Field in HD_FIELDS
-            ) {
+            } else if (!element.hl7Field.isNullOrEmpty()) {
                 // some of our schema elements are actually subcomponents of the HL7 fields, and are individually
                 // text, but need to be truncated because they're the first part of an HD field. For example,
                 // ORC-2-2 and ORC-3-2, so we are manually pulling them aside to truncate them
-                val truncatedValue = if (
-                    value.length > HD_TRUNCATION_LIMIT &&
-                    hl7Config?.truncateHDNamespaceIds == true
-                ) {
-                    value.substring(0, HD_TRUNCATION_LIMIT)
-                } else {
-                    value
-                }
-                setComponent(terser, element, element.hl7Field, truncatedValue, report)
-            } else if (element.hl7Field != null) {
-                setComponent(terser, element, element.hl7Field, value, report)
+                val truncatedValue = getValue(
+                    value,
+                    element.type,
+                    element.hl7Field,
+                    hl7Config?.truncateHDNamespaceIds ?: false)
+
+                aoeSequence = setComponentValue(
+                    terser,
+                    element,
+                    element.hl7Field,
+                    truncatedValue,
+                    report,
+                    row,
+                    hl7Config,
+                    processingId,
+                    aoeSequence
+                )
             }
         }
         // make sure all fields we're suppressing are empty
@@ -412,6 +402,65 @@ class Hl7Serializer(val metadata: Metadata) {
             val pathSpec = formPathSpec("MSH-4-2")
             terser.set(pathSpec, hl7Config?.reportingFacilityId)
         }
+    }
+
+    private fun setComponentValue(
+        terser: Terser,
+        element: Element,
+        hl7Field: String,
+        value: String,
+        report: Report,
+        row: Int,
+        hl7Config: Hl7Configuration? = null,
+        processingId: String = "T",
+        aoeSequence: Int = 1
+    ): Int {
+        var aoeSeq: Int = aoeSequence
+        val suppressQst = hl7Config?.suppressQstForAoe ?: false
+        val suppressAoe = hl7Config?.suppressAoe ?: false
+        if (hl7Field == "AOE" && !suppressAoe) {
+            if (value.isBlank()) {
+                // if the value is null but we're defaulting
+                if (hl7Config?.defaultAoeToUnknown == true) {
+                    val date = report.getString(row, "specimen_collection_date_time") ?: ""
+                    setAOE(terser, element, aoeSeq++, date, "UNK", report, row, suppressQst = suppressQst)
+                }
+            } else {
+                if (element.type == Element.Type.NUMBER) {
+                    val units = report.getString(row, "${element.name}_units")
+                    val date = report.getString(row, "specimen_collection_date_time") ?: ""
+                    setAOE(terser, element, aoeSeq++, date, value, report, row, units, suppressQst)
+                } else {
+                    val date = report.getString(row, "specimen_collection_date_time") ?: ""
+                    setAOE(terser, element, aoeSeq++, date, value, report, row, suppressQst = suppressQst)
+                }
+            }
+        } else if (hl7Field == "NTE-3") {
+            setNote(terser, value)
+        } else if (hl7Field == "MSH-7") {
+            setComponent(terser, element, "MSH-7", formatter.format(report.createdDateTime), report)
+        } else if (hl7Field == "MSH-11") {
+            setComponent(terser, element, "MSH-11", processingId, report)
+        } else if (element.mapperRef != null && element.type == Element.Type.TABLE) {
+            setComponentForTable(terser, element, report, row)
+        } else if (element.type == Element.Type.TEXT && hl7Field.isNotEmpty() && element.hl7Field in HD_FIELDS) {
+            // some of our schema elements are actually subcomponents of the HL7 fields, and are individually
+            // text, but need to be truncated because they're the first part of an HD field. For example,
+            // ORC-2-2 and ORC-3-2, so we are manually pulling them aside to truncate them
+            val truncatedValue = if (
+                value.length > HD_TRUNCATION_LIMIT &&
+                hl7Config?.truncateHDNamespaceIds == true
+            ) {
+                value.substring(0, HD_TRUNCATION_LIMIT)
+            } else {
+                value
+            }
+            setComponent(terser, element, hl7Field, truncatedValue, report)
+        } else {
+            setComponent(terser, element, hl7Field, value, report)
+        }
+
+        return aoeSeq
     }
 
     private fun setComponentForTable(terser: Terser, element: Element, report: Report, row: Int) {

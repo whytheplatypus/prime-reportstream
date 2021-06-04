@@ -10,6 +10,10 @@ services:
       - type: bind
         source: ./app
         target: /app
+      # Make scripts available
+      - type: bind
+        source: ./scripts
+        target: /scripts
       # Keep Azure config
       - type: volume
         source: azure_config
@@ -25,6 +29,10 @@ services:
       - type: bind
         source: ./app
         target: /app
+      # Make scripts available
+      - type: bind
+        source: ./scripts
+        target: /scripts
       # Keep Azure config
       - type: volume
         source: azure_config
@@ -40,6 +48,10 @@ services:
       - type: bind
         source: ./app
         target: /app
+      # Make scripts available
+      - type: bind
+        source: ./scripts
+        target: /scripts
       # Keep Azure config
       - type: volume
         source: azure_config
@@ -55,6 +67,10 @@ services:
       - type: bind
         source: ./app
         target: /app
+      # Make scripts available
+      - type: bind
+        source: ./scripts
+        target: /scripts
       # Keep Azure config
       - type: volume
         source: azure_config

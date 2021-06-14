@@ -209,14 +209,14 @@ Examples:
                 failures.add(test)
         }
         if (failures.isNotEmpty()) {
-            CoolTest.bad("*** Tests FAILED:  ${failures.map { it.name }.joinToString(",")} ***")
+            CoolTest.bad("*** Tests FAILED:  ${failures.joinToString(",") { it.name }} ***")
         } else {
             CoolTest.good("All tests passed")
         }
     }
 
     companion object {
-        val coolTestList = listOf<CoolTest>(
+        val coolTestList = listOf(
             Ping(),
             End2End(),
             Merge(),
@@ -580,8 +580,8 @@ class Merge : CoolTest() {
 
     override fun run(environment: ReportStreamEnv, options: CoolTestOptions): Boolean {
         // Remove HL7 - it does not merge   TODO write a notMerging test for HL7, but its similar to end2end
-        val mergingReceivers = listOf<Receiver>(csvReceiver, hl7BatchReceiver, redoxReceiver)
-        val mergingCounties = mergingReceivers.map { it.name }.joinToString(",")
+        val mergingReceivers = listOf(csvReceiver, hl7BatchReceiver, redoxReceiver)
+        val mergingCounties = mergingReceivers.joinToString(",") { it.name }
         val fakeItemCount = mergingReceivers.size * options.items
         ugly("Starting merge test:  Merge ${options.submits} reports, each of which sends to $allGoodCounties")
         val file = FileUtilities.createFakeFile(
@@ -666,16 +666,16 @@ class TooManyCols : CoolTest() {
             HttpUtilities.postReportFile(environment, file, org.name, simpleRepSender.name, options.key)
         echo("Response to POST: $responseCode")
         echo(json)
-        try {
+        return try {
             val tree = jacksonObjectMapper().readTree(json)
             val firstError = ((tree["errors"] as ArrayNode)[0]) as ObjectNode
             if (firstError["details"].textValue().contains("columns")) {
-                return good("toomanycols Test passed.")
+                good("toomanycols Test passed.")
             } else {
-                return bad("***toomanycols Test FAILED***:  did not find the error.")
+                bad("***toomanycols Test FAILED***:  did not find the error.")
             }
         } catch (e: Exception) {
-            return bad("***toomanycols Test FAILED***: Unable to parse json response")
+            bad("***toomanycols Test FAILED***: Unable to parse json response")
         }
     }
 }
@@ -800,7 +800,7 @@ class StracPack : CoolTest() {
         )
         echo("Created datafile $file")
         // Now send it to ReportStream over and over
-        var reportIds = mutableListOf<ReportId>()
+        val reportIds = mutableListOf<ReportId>()
         var passed = true
         // submit in thread grouping somewhat smaller than our database pool size.
         for (i in 1..options.submits) {
@@ -931,7 +931,7 @@ class HammerTime : CoolTest() {
         )
         echo("Created datafile $file")
         // Now send it to ReportStream over and over
-        var reportIds = mutableListOf<ReportId>()
+        val reportIds = mutableListOf<ReportId>()
         var passed = true
         // submit in thread grouping somewhat smaller than our database pool size.
         for (i in 1..options.submits) {
@@ -1027,10 +1027,13 @@ class QualityFilter : CoolTest() {
             for (i in 0 until destinations.size()) {
                 val dest = destinations[i] as ObjectNode
                 if (dest["service"].textValue() == receiver.name) {
-                    if (dest["itemCount"].intValue() == expectedCount) {
-                        return good("Test Passed: For ${receiver.name} expected $expectedCount and found $expectedCount")
+                    return if (dest["itemCount"].intValue() == expectedCount) {
+                        good("Test Passed: For ${receiver.name} expected $expectedCount and found $expectedCount")
                     } else {
-                        return bad("***Test FAILED***; For ${receiver.name} expected $expectedCount but got ${dest["itemCount"].intValue()}")
+                        bad(
+                            "***Test FAILED***; For ${receiver.name} expected" +
+                                " $expectedCount but got ${dest["itemCount"].intValue()}"
+                        )
                     }
                 }
             }
@@ -1176,16 +1179,16 @@ class TooBig : CoolTest() {
             HttpUtilities.postReportFile(environment, file, org.name, simpleRepSender.name, options.key)
         echo("Response to POST: $responseCode")
         echo(json)
-        try {
+        return try {
             val tree = jacksonObjectMapper().readTree(json)
             val firstError = ((tree["errors"] as ArrayNode)[0]) as ObjectNode
             if (firstError["details"].textValue().contains("rows")) {
-                return good("toobig Test passed.")
+                good("toobig Test passed.")
             } else {
-                return bad("***toobig Test Test FAILED***: Did not find the error")
+                bad("***toobig Test Test FAILED***: Did not find the error")
             }
         } catch (e: Exception) {
-            return bad("***toobig Test FAILED***: Unable to parse json response")
+            bad("***toobig Test FAILED***: Unable to parse json response")
         }
     }
 }
@@ -1284,12 +1287,16 @@ class BadSftp : CoolTest() {
  */
 class InternationalContent : CoolTest() {
     override val name = "intcontent"
-    override val description = "Create Fake data that includes international characters, submit, wait, confirm sent via database lineage data"
+    override val description = "Create Fake data that includes international " +
+        "characters, submit, wait, confirm sent via database lineage data"
     override val status = TestStatus.DRAFT // Because this can only be run local to get access to the SFTP folder
 
     override fun run(environment: ReportStreamEnv, options: CoolTestOptions): Boolean {
         if (options.env != "local") {
-            return bad("***intcontent Test FAILED***: This test can only be run locally as it needs access to the SFTP folder.")
+            return bad(
+                "***intcontent Test FAILED***: This test can only " +
+                    "be run locally as it needs access to the SFTP folder."
+            )
         }
 
         // Make sure we have access to the SFTP folder
@@ -1336,10 +1343,10 @@ class InternationalContent : CoolTest() {
                     asciiOnly = CharMatcher.ascii().matchesAllOf(contents)
                 }
             }
-            if (asciiOnly) {
-                return bad("***intcontent Test FAILED***: File contents are only ASCII characters")
+            return if (asciiOnly) {
+                bad("***intcontent Test FAILED***: File contents are only ASCII characters")
             } else {
-                return good("Test passed: for intcontent")
+                good("Test passed: for intcontent")
             }
         } catch (e: NullPointerException) {
             return bad("***intcontent Test FAILED***: Unable to properly parse response json")

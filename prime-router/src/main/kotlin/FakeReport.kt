@@ -125,11 +125,16 @@ class FakeDataService {
             return when {
                 element.table?.startsWith("LIVD-SARS-CoV-2") == true -> {
                     if (element.tableColumn == null) return ""
-                    lookupTable.lookupValue("Model", context.equipmentModel, element.tableColumn)
-                        ?: error(
-                            "Schema Error: Could not lookup ${context.equipmentModel} " +
-                                "to ${element.tableColumn}"
-                        )
+                    lookupTable.lookupValue(
+                        "Model",
+                        context.equipmentModel,
+                        element.tableColumn,
+                        ignoreCase = true,
+                        filters = mapOf("Test Performed LOINC Code" to context.testPerformedLOINCCode),
+                    ) ?: error(
+                        "Schema Error: Could not lookup ${context.equipmentModel} " +
+                            "to ${element.tableColumn}"
+                    )
                 }
                 element.table?.startsWith("LIVD-Supplemental") == true -> {
                     if (element.tableColumn == null) return ""
@@ -186,7 +191,7 @@ class FakeDataService {
     }
 }
 
-class FakeReport(val metadata: Metadata, val locale : Locale? = null) {
+class FakeReport(val metadata: Metadata, val locale: Locale? = null) {
     private val fakeDataService: FakeDataService = FakeDataService()
 
     class RowContext(
@@ -194,15 +199,11 @@ class FakeReport(val metadata: Metadata, val locale : Locale? = null) {
         reportState: String? = null,
         val schemaName: String? = null,
         reportCounty: String? = null,
-        val locale : Locale? = null
+        val locale: Locale? = null
     ) {
         val faker = if (locale == null) Faker() else Faker(locale)
         val patientName: Name = faker.name()
         val schoolName: String = faker.university().name()
-        val equipmentModel = randomChoice(
-            "BinaxNOW COVID-19 Ag Card",
-            "BD Veritor System for Rapid Detection of SARS-CoV-2*"
-        )
         // find our state
         val state: String = reportState ?: randomChoice("FL", "PA", "TX", "AZ", "ND", "CO", "LA", "NM", "VT", "GU")
         // find our county
@@ -237,6 +238,25 @@ class FakeReport(val metadata: Metadata, val locale : Locale? = null) {
                 )
             )
         } ?: faker.address().city().toString()
+        // now we fake up some better LIVD data
+        // PIMA only allows certain test types in their alt values
+        val equipmentModel = when (county) {
+            "Pima" -> randomChoice(
+                "BinaxNOW COVID-19 Ag Card",
+                "BD Veritor System for Rapid Detection of SARS-CoV-2*",
+            )
+            else -> randomChoice(
+                "BinaxNOW COVID-19 Ag Card",
+                "BD Veritor System for Rapid Detection of SARS-CoV-2*",
+                "Sofia 2 Flu + SARS Antigen FIA*"
+            )
+        }
+        val testPerformedLOINCCode = findLookupTable("LIVD-SARS-CoV-2-2021-04-28")?.let {
+            when (equipmentModel) {
+                "Sofia 2 Flu + SARS Antigen FIA*" -> "95209-3" // we should only pick the COVID one for Sofia 2
+                else -> randomChoice(it.filter("Model", equipmentModel, "Test Performed LOINC Code"))
+            }
+        } ?: "94558-4"
     }
 
     internal fun buildColumn(element: Element, context: RowContext): String {

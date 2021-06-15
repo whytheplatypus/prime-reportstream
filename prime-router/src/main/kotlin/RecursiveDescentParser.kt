@@ -52,6 +52,8 @@ object RecursiveDescentParser {
                 }
             }
         }
+
+        return emptyMap()
     }
 
     private fun parseFactor(expression: String) {

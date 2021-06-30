@@ -6,6 +6,7 @@
 #    2.  It seems to tweak the use of "" for escaping fields, so that while the csv looks the same in Excel, the ascii has changed.
 
 # This runs prime in a variety of ways on csv files and compare outputs to actuals
+# Test comment
 
 outputdir=build/csv_test_files
 expecteddir=./src/test/csv_test_files/expected

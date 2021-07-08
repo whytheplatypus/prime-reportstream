@@ -478,6 +478,9 @@
       translation:
         type: HL7
         useBatchHeaders: true
+        truncateHDNamespaceIds: true
+        receivingFacilityName: MYEHR
+        receivingApplicationName: IMMTRAX
       transport:
         type: SFTP
         host: sftp

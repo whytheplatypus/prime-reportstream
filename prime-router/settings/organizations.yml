@@ -206,8 +206,8 @@
       organizationName: tx-phd
       topic: covid-19
       jurisdictionalFilter:
-        - "matches(ordering_facility_state, TX)"
-        - "matches(processing_mode_code, T)"
+        - orEquals(ordering_facility_state, TX, patient_state, TX)
+        - matches(processing_mode_code, T)
       translation:
         type: HL7
         useBatchHeaders: false
@@ -223,8 +223,8 @@
       organizationName: tx-phd
       topic: covid-19
       jurisdictionalFilter:
-        - "matches(ordering_facility_state, TX)"
-        - "matches(processing_mode_code, D)"
+        - orEquals(ordering_facility_state, TX, patient_state, TX)
+        - matches(processing_mode_code, D)
       translation:
         type: HL7
         useBatchHeaders: false
@@ -246,7 +246,7 @@
       organizationName: fl-phd
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, FL)
+        - orEquals(ordering_facility_state, FL, patient_state, FL)
       deidentify: false
       translation:
         type: HL7
@@ -276,7 +276,7 @@
       organizationName: gu-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, GU)
+        - orEquals(ordering_facility_state, GU, patient_state, GU)
       deidentify: false
       translation:
         type: HL7
@@ -304,7 +304,7 @@
       organizationName: vt-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, VT)
+        - orEquals(ordering_facility_state, VT, patient_state, VT)
       deidentify: false
       translation:
         type: HL7
@@ -313,6 +313,17 @@
         receivingApplicationOID: 2.16.840.1.114222.4.1.185.1
         receivingFacilityName: VDH
         receivingFacilityOID: 2.16.840.1.114222.4.1.185
+      timing:
+        operation: MERGE
+        numberPerDay: 1440 # Every minute
+        initialTime: 00:00
+        timeZone: CENTRAL
+      transport:
+        type: SFTP
+        host: sftp
+        port: 22
+        filePath: ./upload
+        credentialName: DEFAULT-SFTP
 
 - name: nd-doh
   description: North Dakota Department of Health
@@ -323,7 +334,7 @@
       organizationName: nd-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, ND)
+        - orEquals(ordering_facility_state, ND, patient_state, ND)
       deidentify: false
       translation:
         type: HL7
@@ -353,7 +364,7 @@
       organizationName: la-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, LA)
+        - orEquals(ordering_facility_state, LA, patient_state, LA)
       translation:
         type: HL7
         useBatchHeaders: true
@@ -383,7 +394,7 @@
       organizationName: oh-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, OH)
+        - orEquals(ordering_facility_state, OH, patient_state, OH)
       translation:
         type: HL7
         useBatchHeaders: true
@@ -419,7 +430,7 @@
       organizationName: nm-doh
       topic: covid-19
       jurisdictionalFilter:
-        - matches(ordering_facility_state, NM)
+        - orEquals(ordering_facility_state, NM, patient_state, NM)
       translation:
         type: HL7
         useBatchHeaders: true
@@ -436,26 +447,6 @@
       timing:
         operation: MERGE
         numberPerDay: 1440 # Every minute
-        initialTime: 00:00
-        timeZone: MOUNTAIN
-      transport:
-        type: SFTP
-        host: sftp
-        port: 22
-        filePath: ./upload
-        credentialName: DEFAULT-SFTP
-    - name: elr-csv
-      organizationName: nm-doh
-      topic: covid-19
-      jurisdictionalFilter:
-        - matches(ordering_facility_state, NM)
-      translation:
-        type: CUSTOM
-        format: CSV
-        schemaName: nm/nm-covid-19-csv
-      timing:
-        operation: MERGE
-        numberPerDay: 1440
         initialTime: 00:00
         timeZone: MOUNTAIN
       transport:
@@ -489,26 +480,6 @@
         numberPerDay: 1440 # Every minute
         initialTime: 00:00
         timeZone: MOUNTAIN
-    - name: elr-csv
-      organizationName: mt-doh
-      topic: covid-19
-      jurisdictionalFilter:
-        - orEquals(patient_state, MT, ordering_facility_state, MT)
-      translation:
-        type: CUSTOM
-        format: CSV
-        schemaName: mt/mt-covid-19-csv
-      transport:
-        type: SFTP
-        host: sftp
-        port: 22
-        filePath: ./upload
-        credentialName: DEFAULT-SFTP
-      timing:
-        operation: MERGE
-        numberPerDay: 1440
-        initialTime: 00:00
-        timeZone: MOUNTAIN
 
 - name: tx-doh
   description: Texas Department of Health
@@ -538,65 +509,6 @@
         initialTime: 00:00
         timeZone: CENTRAL
 
-- name: gu-doh
-  description: Guam Department of Health
-  jurisdiction: STATE
-  stateCode: GU
-  receivers:
-    - name: elr
-      organizationName: gu-doh
-      topic: covid-19
-      jurisdictionalFilter:
-        - matches(ordering_facility_state, GU)
-      translation:
-        type: HL7
-        useBatchHeaders: true
-        receivingApplicationName: GUDOH
-        receivingFacilityName: GUDOH
-      transport:
-        type: SFTP
-        host: sftp
-        port: 22
-        filePath: ./upload
-        credentialName: DEFAULT-SFTP
-      timing:
-        operation: MERGE
-        numberPerDay: 1440 # Every minute
-        initialTime: 00:00
-        timeZone: CHAMORRO
-
-- name: vt-doh
-  description: Vermont Department of Health
-  jurisdiction: STATE
-  stateCode: VT
-  receivers:
-    - name: elr
-      organizationName: vt-doh
-      topic: covid-19
-      jurisdictionalFilter:
-        - orEquals(ordering_facility_state, VT, patient_state, VT)
-      translation:
-        type: HL7
-        useBatchHeaders: true
-        receivingApplicationName: NBS
-        receivingApplicationOID: 2.16.840.1.114222.4.1.185.1
-        receivingFacilityName: VDH
-        receivingFacilityOID: 2.16.840.1.114222.4.1.185
-        truncateHDNamespaceIds: true
-        usePid14ForPatientEmail: true
-        suppressHl7Fields: OBX-18
-      transport:
-        type: SFTP
-        host: sftp
-        port: 22
-        filePath: ./upload
-        credentialName: DEFAULT-SFTP
-      timing:
-        operation: MERGE
-        numberPerDay: 1440 # Every minute
-        initialTime: 00:00
-        timeZone: EASTERN
-
 - name: nj-doh
   description: New Jersey Department of Health
   jurisdiction: STATE
@@ -607,7 +519,6 @@
       topic: covid-19
       jurisdictionalFilter:
         - orEquals(ordering_facility_state, NJ, patient_state, NJ)
-        - matches(processing_mode_code, P)
       translation:
         type: HL7
         useBatchHeaders: true

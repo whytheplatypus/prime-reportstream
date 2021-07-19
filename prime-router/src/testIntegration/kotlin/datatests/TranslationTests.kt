@@ -200,8 +200,8 @@ class TranslationTests {
                         result.warnings.joinToString("\n")
                 )
                 // Print the errors and warnings after the test completed successfully.
-                if (result.errors.isNotEmpty()) println(result.errors.joinToString("\n", "ERROR: "))
-                if (result.warnings.isNotEmpty()) println(result.warnings.joinToString("\n", "WARNING: "))
+                if (result.errors.isNotEmpty()) println(result.errors.joinToString("\n", "ERRORS: "))
+                if (result.warnings.isNotEmpty()) println(result.warnings.joinToString("\n", "WARNINGS: "))
             } else if (inputStream == null) {
                 fail("The file ${config.inputFile} was not found.")
             } else {

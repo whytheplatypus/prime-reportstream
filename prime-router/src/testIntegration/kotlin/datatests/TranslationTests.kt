@@ -33,7 +33,7 @@ class TranslationTests {
     /**
      * The path to the configuration file from the test data directory.
      */
-    private val testConfigFile = "conversion-test-config.csv"
+    private val testConfigFile = "translation-test-config.csv"
 
     /**
      * The metadata

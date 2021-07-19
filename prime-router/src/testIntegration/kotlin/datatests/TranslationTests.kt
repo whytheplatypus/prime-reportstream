@@ -21,7 +21,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.fail
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

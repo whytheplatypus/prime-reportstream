@@ -120,8 +120,8 @@ class ReportView private constructor(
         fun facilities(facilities: ArrayList<Facility>) = apply { this.facilities = facilities }
         fun actions(actions: ArrayList<Action>) = apply { this.actions = actions }
         fun content(content: String) = apply { this.content = content }
-        fun fileName(fileName:String) = apply { this.fileName = fileName }
-        fun mimeType(mimeType:String) = apply {this.mimeType = mimeType }
+        fun fileName(fileName: String) = apply { this.fileName = fileName }
+        fun mimeType(mimeType: String) = apply { this.mimeType = mimeType }
 
         fun build() = ReportView(
             sent,
@@ -164,7 +164,7 @@ class CardView private constructor(
         var positive: Boolean? = null,
         var change: Double? = null,
         var pct_change: Double? = null,
-        var data: Array<Long>? = emptyArray<Long>()
+        var data: Array<Long>? = emptyArray()
     ) {
 
         fun id(id: String) = apply { this.id = id }
@@ -177,6 +177,40 @@ class CardView private constructor(
         fun pct_change(pct_change: Double) = apply { this.pct_change = pct_change }
         fun data(data: Array<Long>) = apply { this.data = data }
         fun build() = CardView(id, title, subtitle, daily, last, positive, change, pct_change, data)
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Builder
+
+            if (id != other.id) return false
+            if (title != other.title) return false
+            if (subtitle != other.subtitle) return false
+            if (daily != other.daily) return false
+            if (last != other.last) return false
+            if (positive != other.positive) return false
+            if (change != other.change) return false
+            if (pct_change != other.pct_change) return false
+            if (data != null) {
+                if (other.data == null) return false
+                if (!data.contentEquals(other.data)) return false
+            } else if (other.data != null) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id?.hashCode() ?: 0
+            result = 31 * result + (title?.hashCode() ?: 0)
+            result = 31 * result + (subtitle?.hashCode() ?: 0)
+            result = 31 * result + (daily?.hashCode() ?: 0)
+            result = 31 * result + (last?.hashCode() ?: 0)
+            result = 31 * result + (positive?.hashCode() ?: 0)
+            result = 31 * result + (change?.hashCode() ?: 0)
+            result = 31 * result + (pct_change?.hashCode() ?: 0)
+            result = 31 * result + (data?.contentHashCode() ?: 0)
+            return result
+        }
     }
 }
 
@@ -232,7 +266,7 @@ class GetReportById :
         @BindingName("reportId") reportId: String,
         context: ExecutionContext,
     ): HttpResponseMessage {
-        return GetReportById(request, reportId, context)
+        return getReportById(request, reportId, context)
     }
 }
 
@@ -250,7 +284,7 @@ class GetSummaryTests :
         ) request: HttpRequestMessage<String?>,
         context: ExecutionContext
     ): HttpResponseMessage {
-        return GetSummaryTests(request, context)
+        return getSummaryTests(request, context)
     }
 }
 
@@ -267,7 +301,7 @@ class GetSummary : BaseHistoryFunction() {
         @BindingName("field") field: String,
         context: ExecutionContext
     ): HttpResponseMessage {
-        return GetSummary(request, field, context)
+        return getSummary(request, field, context)
     }
 }
 
@@ -306,7 +340,7 @@ open class BaseHistoryFunction : Logging {
 
                 val header = workflowEngine.fetchHeader(it.reportId, authClaims.organization)
 
-                val content = if( header.content !== null) String(header.content) else "";
+                val content = if (header.content !== null) String(header.content) else ""
                 val filename = Report.formExternalFilename(header)
                 val mimeType = Report.Format.safeValueOf(header.reportFile.bodyFormat).mimeType
 
@@ -340,7 +374,7 @@ open class BaseHistoryFunction : Logging {
         return response
     }
 
-    fun GetReportById(
+    fun getReportById(
         request: HttpRequestMessage<String?>,
         reportIdIn: String,
         context: ExecutionContext
@@ -392,25 +426,25 @@ open class BaseHistoryFunction : Logging {
         return response
     }
 
-    fun isToday(date: OffsetDateTime): Boolean {
+    private fun isToday(date: OffsetDateTime): Boolean {
         return date.monthValue == OffsetDateTime.now().monthValue &&
             date.dayOfMonth == OffsetDateTime.now().dayOfMonth &&
             date.year == OffsetDateTime.now().year
     }
 
-    fun isYesterday(date: OffsetDateTime): Boolean {
-        var yesterday = OffsetDateTime.now().minusDays(1L)
+    private fun isYesterday(date: OffsetDateTime): Boolean {
+        val yesterday = OffsetDateTime.now().minusDays(1L)
         return date.monthValue == yesterday.monthValue &&
             date.dayOfMonth == yesterday.dayOfMonth &&
             date.year == yesterday.year
     }
 
-    fun GetSummaryTests(
+    fun getSummaryTests(
         request: HttpRequestMessage<String?>,
         context: ExecutionContext
     ): HttpResponseMessage {
         val authClaims = checkAuthenticated(request, context)
-        if (authClaims == null) return request.createResponseBuilder(HttpStatus.UNAUTHORIZED).build()
+            ?: return request.createResponseBuilder(HttpStatus.UNAUTHORIZED).build()
         var response: HttpResponseMessage
 
         try {
@@ -418,9 +452,9 @@ open class BaseHistoryFunction : Logging {
                 OffsetDateTime.now().minusDays(DAYS_TO_SHOW),
                 authClaims.organization.name
             )
-            var daily: Long = 0L
-            var sum: Long = 0L
-            var data: Array<Long> = arrayOf(0, 0, 0, 0, 0, 0, 0, 0)
+            var daily = 0L
+            var sum = 0L
+            val data: Array<Long> = arrayOf(0, 0, 0, 0, 0, 0, 0, 0)
 
             @Suppress("NEW_INFERENCE_NO_INFORMATION_FOR_PARAMETER")
             headers.sortedByDescending { it.createdAt }.forEach {
@@ -430,11 +464,11 @@ open class BaseHistoryFunction : Logging {
                 data.set(expires, data.get(expires) + it.itemCount.toLong())
             }
 
-            var avg: Double = 0.0
+            var avg = 0.0
             data.forEach { avg += it }
-            avg = avg / data.size
+            avg /= data.size
 
-            var card = CardView.Builder()
+            val card = CardView.Builder()
                 .id("summary-tests")
                 .title("Tests")
                 .subtitle("Tests reported")
@@ -457,7 +491,7 @@ open class BaseHistoryFunction : Logging {
         return response
     }
 
-    fun GetSummary(
+    fun getSummary(
         request: HttpRequestMessage<String?>,
         field: String,
         context: ExecutionContext
@@ -493,7 +527,7 @@ open class BaseHistoryFunction : Logging {
         return response
     }
 
-    fun getFieldSummaryForReportId(
+    private fun getFieldSummaryForReportId(
         fieldName: Array<String>,
         reportId: String,
         authClaim: AuthClaims
@@ -522,13 +556,14 @@ open class BaseHistoryFunction : Logging {
         return facilties
     }
 
-    fun getActionsForReportId(reportId: String, authClaim: AuthClaims): ArrayList<Action> {
-        var header: Header?
-        var actions: ArrayList<Action> = ArrayList<Action>()
+    private fun getActionsForReportId(reportId: String, authClaim: AuthClaims): ArrayList<Action> {
+        val actions: ArrayList<Action> = ArrayList<Action>()
 
-        try {
-            header = workflowEngine.fetchHeader(ReportId.fromString(reportId), authClaim.organization)
-        } catch (ex: Exception) { header = null }
+        val header = try {
+            workflowEngine.fetchHeader(ReportId.fromString(reportId), authClaim.organization)
+        } catch (ex: Exception) {
+            null
+        }
 
         /* 
         if( header !== null && header.itemLineages !== null ){
@@ -552,7 +587,7 @@ open class BaseHistoryFunction : Logging {
     /**
      * returns null if not authorized, otherwise returns a set of claims.
      */
-    fun checkAuthenticated(request: HttpRequestMessage<String?>, context: ExecutionContext): AuthClaims? {
+    private fun checkAuthenticated(request: HttpRequestMessage<String?>, context: ExecutionContext): AuthClaims? {
         var userName = ""
         // orgs in the settings table of the database have a format of "zz-phd",
         // while the auth service claims has a format of "DHzz_phd"

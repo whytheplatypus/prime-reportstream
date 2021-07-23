@@ -10,7 +10,7 @@ elements:
     csvFields: [{ name: SubmitterUID }]
 
   # This is waters unique id for each row.
-  #  Like a transaction code - allows Waters and their sender to have a shared unique id.
+  #  Like a transaction code - allows Waters and their sender to have a shared unique id. fdsdfdf
   - name: message_id
     cardinality: ONE
     csvFields: [{ name: testId}]

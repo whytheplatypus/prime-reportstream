@@ -25,6 +25,8 @@ import gov.cdc.prime.router.transport.RedoxTransport
 import gov.cdc.prime.router.transport.RetryItems
 import gov.cdc.prime.router.transport.RetryToken
 import gov.cdc.prime.router.transport.SftpTransport
+import gov.cdc.prime.router.utils.PerfMetrics
+import io.micrometer.core.instrument.Timer
 import org.jooq.Configuration
 import org.jooq.Field
 import java.io.ByteArrayInputStream
@@ -36,7 +38,7 @@ import java.time.OffsetDateTime
  *
  * @see gov.cdc.prime.router.Report
  * @see QueueAccess
- * @see DatabaseAccess.Header
+ * @see Header
  */
 class WorkflowEngine(
     // Immutable objects can be shared between every function call
@@ -96,6 +98,7 @@ class WorkflowEngine(
         context: ExecutionContext? = null
     ) {
         val receiverName = "${receiver.organizationName}.${receiver.name}"
+        val timerSample = Timer.start(PerfMetrics)
         val blobInfo = try {
             // formatting errors can occur down in here.
             blob.uploadBody(report, receiverName, nextAction.eventAction)
@@ -106,19 +109,22 @@ class WorkflowEngine(
             )
             throw ex
         }
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.WORKFLOW_DISPATCH_UPLOAD.timerName))
         context?.logger?.fine(
             "Saved dispatched report for receiver $receiverName" +
                 " to blob ${blobInfo.blobUrl}"
         )
-        try {
-            db.insertTask(report, blobInfo.format.toString(), blobInfo.blobUrl, nextAction, txn)
-            // todo remove this; its now tracked in BlobInfo
-            report.bodyURL = blobInfo.blobUrl
-            actionHistory.trackCreatedReport(nextAction, report, receiver, blobInfo)
-        } catch (e: Exception) {
-            // Clean up
-            blob.deleteBlob(blobInfo.blobUrl)
-            throw e
+        PerfMetrics.timer(PerfMetrics.TIMERS.WORKFLOW_DISPATCH_INSERT.timerName).recordCallable {
+            try {
+                db.insertTask(report, blobInfo.format.toString(), blobInfo.blobUrl, nextAction, txn)
+                // todo remove this; its now tracked in BlobInfo
+                report.bodyURL = blobInfo.blobUrl
+                actionHistory.trackCreatedReport(nextAction, report, receiver, blobInfo)
+            } catch (e: Exception) {
+                // Clean up
+                blob.deleteBlob(blobInfo.blobUrl)
+                throw e
+            }
         }
     }
 

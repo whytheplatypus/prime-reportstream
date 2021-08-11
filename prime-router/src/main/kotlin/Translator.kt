@@ -1,5 +1,7 @@
 package gov.cdc.prime.router
 
+import gov.cdc.prime.router.utils.PerfMetrics
+import io.micrometer.core.instrument.Timer
 import org.apache.logging.log4j.kotlin.Logging
 
 /**
@@ -68,6 +70,7 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
      * This does both the filtering by jurisdiction, by qualityFilter, and also the translation.
      */
     private fun translateByReceiver(input: Report, receiver: Receiver, defaultValues: DefaultValues): Report {
+        var timerSample = Timer.start(PerfMetrics)
         // Filter according to this receiver's desired JurisdictionalFilter patterns
         val jurisFilterAndArgs = receiver.jurisdictionalFilter.map { filterSpec ->
             val (fnName, fnArgs) = JurisdictionalFilters.parseJurisdictionalFilter(filterSpec)
@@ -79,7 +82,9 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
 
         // Always succeed in translating an empty report after filtering (even if the mapping process would fail)
         if (jurisFilteredReport.isEmpty()) return buildEmptyReport(receiver, input)
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.TRANSLATOR_JURIS_FILTER.timerName))
 
+        timerSample = Timer.start(PerfMetrics)
         // Now filter according to this receiver's desired qualityFilter, or default filter if none found.
         val qualityFilter = when {
             receiver.qualityFilter.isNotEmpty() -> receiver.qualityFilter
@@ -87,7 +92,7 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
                 JurisdictionalFilters.defaultQualityFilters[receiver.topic]!!
             else -> {
                 logger.info("No default qualityFilter found for topic ${receiver.topic}. Not doing qual filtering")
-                emptyList<String>()
+                emptyList()
             }
         }
         val qualityFilterAndArgs = qualityFilter.map { filterSpec ->
@@ -112,7 +117,9 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
 
         // Always succeed in translating an empty report after filtering (even if the mapping process would fail)
         if (qualityFilteredReport.isEmpty()) return buildEmptyReport(receiver, input)
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.TRANSLATOR_QUAL_FILTER.timerName))
 
+        timerSample = Timer.start(PerfMetrics)
         // Apply mapping to change schema
         val toReport: Report = if (receiver.schemaName != qualityFilteredReport.schema.name) {
             val toSchema = metadata.findSchema(receiver.schemaName)
@@ -138,7 +145,9 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
         var transformed = toReport
         if (receiver.deidentify)
             transformed = transformed.deidentify()
-        return transformed.copy(destination = receiver, bodyFormat = receiver.format)
+        val retVal = transformed.copy(destination = receiver, bodyFormat = receiver.format)
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.TRANSLATOR_TRANSLATE.timerName))
+        return retVal
     }
 
     fun buildEmptyReport(receiver: Receiver, from: Report): Report {

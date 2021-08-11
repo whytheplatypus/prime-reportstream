@@ -480,9 +480,10 @@ dependencies {
     implementation("org.bouncycastle:bcpkix-jdk15on:1.69")
     implementation("org.bouncycastle:bcmail-jdk15on:1.69")
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
-
     implementation("com.cronutils:cron-utils:9.1.5")
     implementation("khttp:khttp:0.1.0")
+    implementation("io.micrometer:micrometer-core:1.7.2")
+    implementation("io.micrometer:micrometer-registry-elastic:1.7.2")
 
     runtimeOnly("com.okta.jwt:okta-jwt-verifier-impl:0.5.1")
     runtimeOnly("com.github.kittinunf.fuel:fuel-jackson:2.3.1")

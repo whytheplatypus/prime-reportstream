@@ -20,6 +20,8 @@ import gov.cdc.prime.router.azure.db.enums.TaskAction
 import gov.cdc.prime.router.tokens.AuthenticationStrategy
 import gov.cdc.prime.router.tokens.OktaAuthentication
 import gov.cdc.prime.router.tokens.TokenAuthentication
+import gov.cdc.prime.router.utils.PerfMetrics
+import io.micrometer.core.instrument.Timer
 import org.apache.logging.log4j.kotlin.Logging
 import org.postgresql.util.PSQLException
 import java.io.ByteArrayInputStream
@@ -52,8 +54,8 @@ class ReportFunction : Logging {
 
     data class ValidatedRequest(
         val httpStatus: HttpStatus,
-        val errors: MutableList<ResultDetail> = mutableListOf<ResultDetail>(),
-        val warnings: MutableList<ResultDetail> = mutableListOf<ResultDetail>(),
+        val errors: MutableList<ResultDetail> = mutableListOf(),
+        val warnings: MutableList<ResultDetail> = mutableListOf(),
         val options: Options = Options.None,
         val defaults: Map<String, String> = emptyMap(),
         val routeTo: List<String> = emptyList(),
@@ -83,7 +85,12 @@ class ReportFunction : Logging {
         ) request: HttpRequestMessage<String?>,
         context: ExecutionContext,
     ): HttpResponseMessage {
-        return ingestReport(request, context)
+        PerfMetrics.setEventType(PerfMetrics.EventType.RECEIVE)
+        PerfMetrics.counter(PerfMetrics.COUNTERS.REPORT_CONNECTIONS.counterName).increment()
+        val timerSample = Timer.start(PerfMetrics)
+        val resp = ingestReport(request, context)
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.REPORT_TOTAL.timerName))
+        return resp
     }
 
     /**
@@ -101,34 +108,42 @@ class ReportFunction : Logging {
         ) request: HttpRequestMessage<String?>,
         context: ExecutionContext,
     ): HttpResponseMessage {
+        fun processWatersReport(): HttpResponseMessage {
+            logger.debug(" request headers: ${request.headers}")
+            val authenticationStrategy = AuthenticationStrategy.authStrategy(
+                request.headers["authentication-type"],
+                PrincipalLevel.USER
+            )
+            val senderName = request.headers[CLIENT_PARAMETER]
+                ?: request.queryParameters.getOrDefault(CLIENT_PARAMETER, "")
+            // todo This code is redundant w/validateRequest. Remove from validateRequest once old endpoint is removed
+            if (senderName.isBlank())
+                return HttpUtilities.bad(request, "Expected a '$CLIENT_PARAMETER' query parameter")
+            val sender = WorkflowEngine().settings.findSender(senderName)
+                ?: return HttpUtilities.bad(request, "'$CLIENT_PARAMETER:$senderName': unknown sender")
 
-        logger.debug(" request headers: ${request.headers}")
-        val authenticationStrategy = AuthenticationStrategy.authStrategy(
-            request.headers["authentication-type"],
-            PrincipalLevel.USER
-        )
-        val senderName = request.headers[CLIENT_PARAMETER]
-            ?: request.queryParameters.getOrDefault(CLIENT_PARAMETER, "")
-        // todo This code is redundant w/validateRequest. Remove from validateRequest once old endpoint is removed
-        if (senderName.isBlank())
-            return HttpUtilities.bad(request, "Expected a '$CLIENT_PARAMETER' query parameter")
-        val sender = WorkflowEngine().settings.findSender(senderName)
-            ?: return HttpUtilities.bad(request, "'$CLIENT_PARAMETER:$senderName': unknown sender")
-
-        if (authenticationStrategy is OktaAuthentication) {
-            // Okta Auth
-            return authenticationStrategy.checkAccess(request, senderName) {
-                return@checkAccess ingestReport(request, context)
+            if (authenticationStrategy is OktaAuthentication) {
+                // Okta Auth
+                return authenticationStrategy.checkAccess(request, senderName) {
+                    return@checkAccess ingestReport(request, context)
+                }
             }
+
+            if (authenticationStrategy is TokenAuthentication) {
+                val claims = authenticationStrategy.checkAccessToken(request, "${sender.fullName}.report")
+                    ?: return HttpUtilities.unauthorizedResponse(request)
+                logger.info("Claims for ${claims["sub"]} validated.  Beginning ingestReport.")
+                return ingestReport(request, context)
+            }
+            return HttpUtilities.bad(request, "Failed authorization") // unreachable code.
         }
 
-        if (authenticationStrategy is TokenAuthentication) {
-            val claims = authenticationStrategy.checkAccessToken(request, "${sender.fullName}.report")
-                ?: return HttpUtilities.unauthorizedResponse(request)
-            logger.info("Claims for ${claims["sub"]} validated.  Beginning ingestReport.")
-            return ingestReport(request, context)
-        }
-        return HttpUtilities.bad(request, "Failed authorization") // unreachable code.
+        PerfMetrics.setEventType(PerfMetrics.EventType.RECEIVE)
+        PerfMetrics.counter(PerfMetrics.COUNTERS.WATERS_CONNECTIONS.counterName).increment()
+        val timerSample = Timer.start(PerfMetrics)
+        val resp = processWatersReport()
+        timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.WATERS_TOTAL.timerName))
+        return resp
     }
 
     private fun ingestReport(request: HttpRequestMessage<String?>, context: ExecutionContext): HttpResponseMessage {
@@ -137,7 +152,9 @@ class ReportFunction : Logging {
         var report: Report? = null
         actionHistory.trackActionParams(request)
         val httpResponseMessage = try {
+            val timerSample = Timer.start(PerfMetrics)
             val validatedRequest = validateRequest(workflowEngine, request)
+            timerSample.stop(PerfMetrics.timer(PerfMetrics.TIMERS.REPORT_VALIDATE.timerName))
             when {
                 validatedRequest.options == Options.CheckConnections -> {
                     workflowEngine.checkConnections()
@@ -157,12 +174,16 @@ class ReportFunction : Logging {
                     // Regular happy path workflow is here
                     context.logger.info("Successfully reported: ${validatedRequest.report.id}.")
                     report = validatedRequest.report
-                    routeReport(context, workflowEngine, validatedRequest, actionHistory)
+                    PerfMetrics.timer(PerfMetrics.TIMERS.REPORT_ROUTING.timerName).recordCallable {
+                        routeReport(context, workflowEngine, validatedRequest, actionHistory)
+                    }
                     if (request.body != null && validatedRequest.sender != null) {
-                        workflowEngine.recordReceivedReport(
-                            report, request.body!!.toByteArray(), validatedRequest.sender!!,
-                            actionHistory, workflowEngine
-                        )
+                        PerfMetrics.timer(PerfMetrics.TIMERS.REPORT_RECORD.timerName).recordCallable {
+                            workflowEngine.recordReceivedReport(
+                                report, request.body!!.toByteArray(), validatedRequest.sender,
+                                actionHistory, workflowEngine
+                            )
+                        }
                     } else error(
                         // This should never happen after the validation, but we do not want a mystery exception here
                         "Unable to save original report ${report.name} due to null " +
@@ -175,14 +196,18 @@ class ReportFunction : Logging {
         } catch (e: Exception) {
             context.logger.log(Level.SEVERE, e.message, e)
             actionHistory.trackActionResult("Exception: ${e.message ?: e}")
+            PerfMetrics.counter(PerfMetrics.COUNTERS.REPORT_ERRORS.counterName, "errorType", "internal").increment()
             HttpUtilities.internalErrorResponse(request)
         }
-        actionHistory.trackActionResult(httpResponseMessage)
-        workflowEngine.recordAction(actionHistory)
-        actionHistory.queueMessages() // Must be done after creating TASK record.
-        // write the data to the table if we're dealing with covid-19. this has to happen
-        // here AFTER we've written the report to the DB
-        writeCovidResultMetadataForReport(report, context, workflowEngine)
+        PerfMetrics.timer(PerfMetrics.TIMERS.REPORT_FINALIZE.timerName).recordCallable {
+            actionHistory.trackActionResult(httpResponseMessage)
+            workflowEngine.recordAction(actionHistory)
+            actionHistory.queueMessages() // Must be done after creating TASK record.
+            // write the data to the table if we're dealing with covid-19. this has to happen
+            // here AFTER we've written the report to the DB
+            writeCovidResultMetadataForReport(report, context, workflowEngine)
+        }
+        PerfMetrics.counter(PerfMetrics.COUNTERS.REPORT_INGESTED.counterName).increment()
         return httpResponseMessage
     }
 
@@ -473,7 +498,7 @@ class ReportFunction : Logging {
             if (result.report != null) {
                 it.writeStringField("id", result.report.id.toString())
                 it.writeStringField("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
-                it.writeStringField("topic", result.report.schema.topic.toString())
+                it.writeStringField("topic", result.report.schema.topic)
                 it.writeNumberField("reportItemCount", result.report.itemCount)
             } else
                 it.writeNullField("id")

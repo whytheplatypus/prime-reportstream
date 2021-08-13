@@ -147,7 +147,15 @@ class FakeDataService {
                         else -> TODO("Add this column in a table")
                     }
                 }
-                else -> TODO("Add this table")
+                element.table == "zip-code-data" -> {
+                    when {
+                        element.nameContains("state") -> context.state
+                        element.nameContains("county") -> context.county
+                        element.nameContains("zip") -> context.zipCode
+                        else -> TODO("Add this column in a table")
+                    }
+                }
+                else -> TODO("Add table ${element.table} to ${::createFakeTableValue.name}")
             }
         }
 

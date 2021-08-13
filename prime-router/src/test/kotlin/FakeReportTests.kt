@@ -117,6 +117,42 @@ class FakeReportTests {
     }
 
     @Test
+    fun `test zip code table`() {
+        // arrange
+        val csv = """
+            state_fips,state,state_abbr,zipcode,county,city
+            4,Arizona,AZ,85003,Maricopa,Phoenix
+            4,Arizona,AZ,85350,Yuma,Somerton
+            4,Arizona,AZ,85749,Pima,Tucson
+            4,Arizona,AZ,85929,Navajo,Lakeside
+        """.trimIndent()
+
+        val zipcodeTable = LookupTable.read(ByteArrayInputStream(csv.toByteArray()))
+        val zipRowContext = FakeReport.RowContext({ null }, "AZ")
+        val orderingFacilityZipcodeElement = Element(
+            "ordering_facility_zip",
+            type = Element.Type.TABLE,
+            table = "zip-code-data",
+            cardinality = Element.Cardinality.ONE,
+            tableColumn = "zipcode",
+            tableRef = zipcodeTable
+        )
+        // add the look up table for fips county
+        val metadata = metadata.loadLookupTable("fips-county", zipcodeTable)
+
+        // act
+        val zipCodes = (1..10).map { _ ->
+            FakeReport(metadata).buildColumn(orderingFacilityZipcodeElement, zipRowContext)
+        }
+
+        val setOfZipCodes = zipCodes.toSet()
+
+        // assert
+        assertThat(setOfZipCodes.contains(zipRowContext.zipCode)).isTrue()
+        assertThat(setOfZipCodes.count() == 1).isTrue()
+    }
+
+    @Test
     fun `test passing state abbreviation into row context`() {
         // arrange
         val csv = """

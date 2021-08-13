@@ -52,7 +52,7 @@ elements:
       csvFields: [{name: Patient phone}]
 
     - name: patient_dob
-      csvFields: [{name: Birth Date, format: "M/d/yyyy H:nn"}]
+      csvFields: [{name: Birth Date, format: "M/d/yyyy"}]
 
     - name: patient_gender
       csvFields: [{name: Sex, format: $display}]

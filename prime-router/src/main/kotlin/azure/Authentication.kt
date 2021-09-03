@@ -81,7 +81,6 @@ class OktaAuthenticationVerifier : AuthenticationVerifier {
         return AuthenticatedClaims(userName, minimumLevel, organizationName)
     }
 
-
     internal fun checkMembership(
         memberships: Collection<String>,
         minimumLevel: PrincipalLevel,

@@ -863,6 +863,8 @@
         receivingApplicationOID: 2.16.840.1.113883.3.33.4.2.2
         receivingFacilityName: WEDSS
         receivingFacilityOID: 2.16.840.1.113883.3.33
+        convertTimestampToDateTime: true
+        usePid14ForPatientEmail: true
       transport:
         type: SFTP
         host: sftp
@@ -887,6 +889,8 @@
         receivingApplicationOID: 2.16.840.1.113883.3.33.4.2.2
         receivingFacilityName: WEDSS
         receivingFacilityOID: 2.16.840.1.113883.3.33
+        convertTimestampToDateTime: true
+        usePid14ForPatientEmail: true
       transport:
         type: SFTP
         host: sftp

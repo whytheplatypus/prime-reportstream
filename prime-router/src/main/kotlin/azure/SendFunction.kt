@@ -67,7 +67,7 @@ class SendFunction(private val workflowEngine: WorkflowEngine = WorkflowEngine()
                 val serviceName = receiver.fullName
                 val nextRetryItems = mutableListOf<String>()
                 if (receiver.transport == null) {
-                    actionHistory.setActionType(TaskAction.send_error)
+                    actionHistory.setActionType(TaskAction.send_warning)
                     actionHistory.trackActionResult("Not sending $inputReportId to $serviceName: No transports defined")
                 } else {
                     val retryItems = retryToken?.items

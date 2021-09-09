@@ -1,7 +1,7 @@
 import "./App.css";
 import { Home } from "./pages/Home";
 import { ReportStreamFooter } from "./components/ReportStreamFooter";
-import { Daily } from "./pages/Daily";
+import Daily from "./pages/Daily/Daily";
 import { HowItWorks } from "./pages/HowItWorks";
 import { Details } from "./pages/Details";
 import { Login } from "./pages/Login";
@@ -50,13 +50,11 @@ const App = () => {
         >
             <Suspense
                 fallback={
-                    <div id="div">
-                        <div id="spinner">
-                            <SpinnerCircular
-                                color="rgba(57, 88, 172, 1)"
-                                size="30%"
-                            />
-                        </div>
+                    <div id="spinner">
+                        <SpinnerCircular
+                            color="rgba(57, 88, 172, 1)"
+                            size="15%"
+                        />
                     </div>
                 }
             >

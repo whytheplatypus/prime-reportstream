@@ -573,7 +573,8 @@ class Hl7Serializer(
             if (!tsValue.isNullOrEmpty()) {
                 try {
                     val dtFormatter = DateTimeFormatter.ofPattern("yyyMMddHHmmss")
-                    val parsedDate = OffsetDateTime.parse(tsValue, formatter).format(dtFormatter)
+                    val incomingDateTimeFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmssZ")
+                    val parsedDate = OffsetDateTime.parse(tsValue, incomingDateTimeFormat).format(dtFormatter)
                     terser.set(pathSpec, parsedDate)
                 } catch (_: Exception) {
                     // for now do nothing

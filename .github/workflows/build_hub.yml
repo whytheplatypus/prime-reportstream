@@ -63,6 +63,37 @@ jobs:
           # This path is from the root of the repo as needed by the plugin
           files: prime-router/build/test-results/test/**/*.xml
 
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: |
+            prime-router/build
+            prime-router/.gradle
+          key: ${{ github.sha }}
+
+  integration_tests:
+    name: Integration Tests
+    needs:
+      - pre_job
+      - build_router
+    if: ${{ needs.pre_job.outputs.has_router_change == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prime-router
+
+    steps:
+      - name: "Check out changes"
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: |
+            prime-router/build
+            prime-router/.gradle
+          key: ${{ github.sha }}
+
       - name: Run Integration Tests
         run: bash ./build.sh -- gradle testIntegration -Pshowtests
 
@@ -77,12 +108,6 @@ jobs:
           # This path is from the root of the repo as needed by the plugin
           files: prime-router/build/test-results/testIntegration/**/*.xml
           check_name: "Integration Test Results"
-
-      - uses: actions/cache@v2
-        id: restore-build
-        with:
-          path: ./build/*
-          key: ${{ github.sha }}
 
   smoke_tests:
     name: Smoke Tests
@@ -101,15 +126,20 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./build/*
+          path: |
+            prime-router/build
+            prime-router/.gradle
           key: ${{ github.sha }}
 
       # Appears not to be needed on GitHub (but needed when running act [https://github.com/nektos/act] locally)
       # - name: Install docker-compose
       #   run: apt-get update && apt-get --yes install docker-compose
 
-      - name: Build Prime Router Package
-        run: bash ./cleanslate.sh --keep-build-artifacts
+      - name: Bring up build docker
+        run: bash docker-compose -f docker-compose.build.yml up -d
+
+      - name: Bring up reportstream docker
+        run: bash docker-compose up -d
 
       - name: Run Smoke Tests
         run: bash ./build.sh -- gradle testSmoke
@@ -117,7 +147,9 @@ jobs:
 
   docker_build_test:
     name: Testing Docker Build
-    needs: pre_job
+    needs:
+      - pre_job
+      - build_router
     if: ${{ needs.pre_job.outputs.has_router_change == 'true' }}
     runs-on: ubuntu-latest
     defaults:
@@ -138,7 +170,9 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./build/*
+          path: |
+            prime-router/build
+            prime-router/.gradle
           key: ${{ github.sha }}
 
       - name: Build Docker Image

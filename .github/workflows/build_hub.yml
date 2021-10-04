@@ -135,11 +135,8 @@ jobs:
       # - name: Install docker-compose
       #   run: apt-get update && apt-get --yes install docker-compose
 
-      - name: Bring up build docker
-        run: docker-compose -f docker-compose.build.yml up -d
-
-      - name: Bring up reportstream docker
-        run: docker-compose up -d
+      - name: Bring up docker
+        run: bash ./cleanslate.sh --keep-build-artifacts
 
       - name: Run Smoke Tests
         run: bash ./build.sh -- gradle testSmoke

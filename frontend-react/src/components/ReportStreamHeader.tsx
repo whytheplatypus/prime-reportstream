@@ -6,6 +6,7 @@ import {
     Link,
     Dropdown,
     NavDropDownButton,
+    NavMenuButton,
     Menu,
 } from "@trussworks/react-uswds";
 import { useOktaAuth } from "@okta/okta-react";
@@ -75,7 +76,7 @@ const SignInOrUser = () => {
             </a>
         </div>
     ) : (
-        <Link href="/daily">
+        <Link href="/daily-data">
             <Button type="button" outline>
                 Log in
             </Button>
@@ -83,9 +84,22 @@ const SignInOrUser = () => {
     );
 };
 
-export const ReportStreamHeader = () => {
-    const { authState } = useOktaAuth();
+const DropdownHowItWorks = () => {
     const [isOpen, setIsOpen] = useState(false);
+
+    /* Used since setIsOpen cannot be directly called in useEffect */
+    const handleClick = () => setIsOpen(false);
+    /* INFO
+       This has to be down on "mouseup" not "mousedown" otherwise clicking
+       any link in the list will result in the menu closing without registering
+       the click on the link; thus, you're not directed to the page desired */
+    useEffect(() => {
+        document.body.addEventListener("mouseup", handleClick);
+        return () => {
+            document.body.removeEventListener("mouseup", handleClick);
+        };
+    }, []);
+
     const testMenuItems = [
         <Link href="/how-it-works/getting-started" >
             Getting started
@@ -111,15 +125,12 @@ export const ReportStreamHeader = () => {
         </Link>,
     ];
 
-    let itemsMenu = [
-        <Link href="/about" id="docs" className="usa-nav__link">
-            <span>About</span>
-        </Link>,
+    return (
         <>
             <NavDropDownButton
                 menuId="testDropDownOne"
                 onToggle={(): void => {
-                    setIsOpen(true);
+                    setIsOpen(!isOpen);
                 }}
                 isOpen={isOpen}
                 label="How it works"
@@ -131,13 +142,27 @@ export const ReportStreamHeader = () => {
                 id="testDropDownOne"
                 onClick={(): void => setIsOpen(false)}
             />
-        </>,
+        </>
+    )
+}
+
+export const ReportStreamHeader = () => {
+    const { authState } = useOktaAuth();
+    const [expanded, setExpanded] = useState(false)
+    const toggleMobileNav = (): void => setExpanded((prvExpanded) => !prvExpanded)
+
+
+    let itemsMenu = [
+        <Link href="/about" id="docs" className="usa-nav__link">
+            <span>About</span>
+        </Link>,
+        <DropdownHowItWorks />,
     ];
 
     if (authState !== null && authState.isAuthenticated) {
         if (reportReceiver(authState)) {
             itemsMenu.splice(0, 0,
-                <Link href="/daily"
+                <Link href="/daily-data"
                     key="daily"
                     data-attribute="hidden"
                     hidden={true}
@@ -147,7 +172,7 @@ export const ReportStreamHeader = () => {
             );
         }
 
-        if (permissionCheck(PERMISSIONS['sender'], authState)) {
+        if (permissionCheck(PERMISSIONS.SENDER, authState)) {
             itemsMenu.splice(1, 0,
                 <Link href="/upload"
                     key="upload"
@@ -167,8 +192,12 @@ export const ReportStreamHeader = () => {
                     <Title>
                         <a href="/">ReportStream</a>
                     </Title>
+                    <NavMenuButton onClick={toggleMobileNav} label="Menu" />
                 </div>
-                <PrimaryNav items={itemsMenu}>
+                <PrimaryNav 
+                    items={itemsMenu} 
+                    onToggleMobileNav={toggleMobileNav}
+                    mobileExpanded={expanded}>
                     <SignInOrUser />
                 </PrimaryNav>
             </div>

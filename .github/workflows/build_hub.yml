@@ -78,9 +78,17 @@ jobs:
           files: prime-router/build/test-results/testIntegration/**/*.xml
           check_name: "Integration Test Results"
 
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./build/*
+          key: ${{ github.sha }}
+
   smoke_tests:
     name: Smoke Tests
-    needs: pre_job
+    needs:
+      - pre_job
+      - build_router
     if: ${{ needs.pre_job.outputs.has_router_change == 'true' }}
     runs-on: ubuntu-latest
     defaults:
@@ -90,13 +98,18 @@ jobs:
     steps:
       - name: "Check out changes"
         uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./build/*
+          key: ${{ github.sha }}
 
       # Appears not to be needed on GitHub (but needed when running act [https://github.com/nektos/act] locally)
       # - name: Install docker-compose
       #   run: apt-get update && apt-get --yes install docker-compose
 
       - name: Build Prime Router Package
-        run: bash ./cleanslate.sh
+        run: bash ./cleanslate.sh --keep-build-artifacts
 
       - name: Run Smoke Tests
         run: bash ./build.sh -- gradle testSmoke
@@ -119,8 +132,14 @@ jobs:
       # - name: Install docker-compose
       #   run: apt-get update && apt-get --yes install docker-compose
 
-      - name: Build Prime Router Package
-        run: bash ./build.sh -- gradle clean package -x fatjar
+      # - name: Build Prime Router Package
+      #   run: bash ./build.sh -- gradle clean package -x fatjar
+
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./build/*
+          key: ${{ github.sha }}
 
       - name: Build Docker Image
         run: docker build . --file Dockerfile --tag cdcgov/reportstream:latest

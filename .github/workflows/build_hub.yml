@@ -165,8 +165,7 @@ jobs:
         run: bash ./cleanslate.sh --keep-build-artifacts
 
       - name: Run Smoke Tests
-        run: bash ./build.sh -- gradle testSmoke
-
+        run: bash ./build.sh ./prime test --run parallel
 
   docker_build_test:
     name: Testing Docker Build

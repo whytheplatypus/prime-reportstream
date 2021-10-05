@@ -50,8 +50,42 @@ jobs:
       #   run: apt-get update && apt-get --yes install docker-compose
 
       - name: Build Prime Router Package
-        run: bash ./build.sh -- gradle clean package -x fatjar -Pshowtests
+        run: bash ./build.sh -- gradle clean package -x test
         
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: |
+            prime-router/build
+            prime-router/.gradle
+          key: ${{ github.sha }}
+
+  unit_tests:
+    name: Unit Tests
+    needs:
+      - pre_job
+      - build_router
+    if: ${{ needs.pre_job.outputs.has_router_change == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prime-router
+
+    steps:
+      - name: "Check out changes"
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: |
+            prime-router/build
+            prime-router/.gradle
+          key: ${{ github.sha }}
+
+      - name: Run Unit Tests
+        run: bash ./build.sh -- gradle test -Pshowtests
+
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1
         # Per https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
@@ -62,14 +96,6 @@ jobs:
         with:
           # This path is from the root of the repo as needed by the plugin
           files: prime-router/build/test-results/test/**/*.xml
-
-      - uses: actions/cache@v2
-        id: restore-build
-        with:
-          path: |
-            prime-router/build
-            prime-router/.gradle
-          key: ${{ github.sha }}
 
   integration_tests:
     name: Integration Tests

@@ -8,6 +8,7 @@ import com.microsoft.azure.functions.HttpRequestMessage
 import com.microsoft.azure.functions.HttpResponseMessage
 import com.microsoft.azure.functions.HttpStatus
 import com.microsoft.azure.functions.HttpStatusType
+import gov.cdc.prime.router.CustomerStatus
 import gov.cdc.prime.router.Organization
 import gov.cdc.prime.router.Receiver
 import gov.cdc.prime.router.Sender
@@ -150,6 +151,7 @@ class TokenFunctionTests {
         "simple_report",
         Sender.Format.CSV,
         "covid-19",
+        CustomerStatus.INACTIVE,
         "default"
     )
     var validScope = "simple_report.default.report"
@@ -255,7 +257,15 @@ class TokenFunctionTests {
         // Verify
         assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED)
         assertThat(response.getBody()).isEqualTo(null)
-        verify { anyConstructed<ActionHistory>().trackActionResult(match<String> { it.startsWith("Rejecting SenderToken JWT: io.jsonwebtoken.MalformedJwtException: Unable to read JSON value:") }) }
+        verify {
+            anyConstructed<ActionHistory>().trackActionResult(
+                match<String> {
+                    it.startsWith(
+                        "Rejecting SenderToken JWT: io.jsonwebtoken.MalformedJwtException: Unable to read JSON value:"
+                    )
+                }
+            )
+        }
     }
 
     @Test
@@ -274,7 +284,11 @@ class TokenFunctionTests {
         var response = tokenFunction.report(httpRequestMessage, context)
         // Verify
         assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED)
-        verify { anyConstructed<ActionHistory>().trackActionResult("Rejecting SenderToken JWT: java.lang.NullPointerException: issuer must not be null") }
+        verify {
+            anyConstructed<ActionHistory>().trackActionResult(
+                "Rejecting SenderToken JWT: java.lang.NullPointerException: issuer must not be null"
+            )
+        }
     }
 
     @Test
@@ -310,7 +324,12 @@ class TokenFunctionTests {
         var response = TokenFunction().report(httpRequestMessage, context)
         // Verify
         assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED)
-        verify { anyConstructed<ActionHistory>().trackActionResult("AccessToken Request Denied: Error while requesting simple_report.default.report: No auth keys associated with sender simple_report.default") }
+        verify {
+            anyConstructed<ActionHistory>().trackActionResult(
+                "AccessToken Request Denied: Error while requesting simple_report.default.report: " +
+                    "No auth keys associated with sender simple_report.default"
+            )
+        }
     }
 
     @Test
@@ -320,19 +339,22 @@ class TokenFunctionTests {
             // Wrong org
             listOf(
                 "wrong.default.report",
-                "AccessToken Request Denied: Error while requesting wrong.default.report: Invalid scope for this sender: wrong.default.report",
+                "AccessToken Request Denied: Error while requesting wrong.default.report: " +
+                    "Invalid scope for this sender: wrong.default.report",
                 "Expected organization simple_report. Instead got: wrong"
             ),
             // Wrong sender
             listOf(
                 "simple_report.wrong.report",
-                "AccessToken Request Denied: Error while requesting simple_report.wrong.report: Invalid scope for this sender: simple_report.wrong.report",
+                "AccessToken Request Denied: Error while requesting simple_report.wrong.report: " +
+                    "Invalid scope for this sender: simple_report.wrong.report",
                 "Expected sender default. Instead got: wrong"
             ),
             // Wrong 
             listOf(
                 "simple_report.default.bad",
-                "AccessToken Request Denied: Error while requesting simple_report.default.bad: Invalid scope for this sender: simple_report.default.bad",
+                "AccessToken Request Denied: Error while requesting simple_report.default.bad: " +
+                    "Invalid scope for this sender: simple_report.default.bad",
                 "Invalid DetailedScope bad"
             ),
         ).forEach {
@@ -360,7 +382,13 @@ class TokenFunctionTests {
         var response = TokenFunction().report(httpRequestMessage, context)
         // Verify
         assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED)
-        verify { anyConstructed<ActionHistory>().trackActionResult("AccessToken Request Denied: Error while requesting simple_report.default.report: Unable to find auth key for simple_report.default with scope=simple_report.default.report, kid=null, and alg=RS256") }
+        verify {
+            anyConstructed<ActionHistory>().trackActionResult(
+                "AccessToken Request Denied: Error while requesting simple_report.default.report: " +
+                    "Unable to find auth key for simple_report.default with scope=simple_report.default.report, " +
+                    "kid=null, and alg=RS256"
+            )
+        }
     }
 
     @Test

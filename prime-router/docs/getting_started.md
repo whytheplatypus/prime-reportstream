@@ -143,7 +143,7 @@ the baseline (see "[Building in the course of development](#building-in-the-cour
 
 ```bash
 cd ./prime-router
-./gradlew package
+./gradlew clean package
 ./devenv-infrastructure.sh
 ```
 If you see any SSL errors during this step, follow the directions in [Getting Around SSL Errors](#getting-around-ssl-errors).
@@ -377,6 +377,10 @@ is very useful to reset your database to a clean state.  Note that the database 
 next time you run ReportStream.
     ```bash
     ./gradlew reloadDB
+    ```
+1. Run ReportStream and run the following command to load the organization settings into the database:
+    ```bash
+    ./gradlew reloadSettings
     ```
 
 # Additional tooling

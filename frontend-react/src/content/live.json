@@ -72,6 +72,14 @@
     },
     {
       "status": "Live",
+      "state": "Arkansas"
+    },
+    {
+      "status": "Live",
+      "state": "Alaska"
+    },
+    {
+      "status": "Live",
       "state": "Arizona"
     },
     {
@@ -89,6 +97,10 @@
     {
       "status": "Live",
       "state": "Guam"
+    },
+    {
+      "status": "Live",
+      "state": "Illinois"
     },
     {
       "status": "Live",
@@ -117,6 +129,10 @@
     {
       "status": "Live",
       "state": "New Jersey"
+    },
+    {
+      "status": "Live",
+      "state": "New Hampshire"
     },
     {
       "status": "Live",
@@ -149,50 +165,6 @@
     {
       "status": "Live",
       "state": "Wyoming"
-    },
-    {
-      "status": "Building",
-      "state": "Oregon"
-    },
-    {
-      "status": "Building",
-      "state": "Alaska"
-    },
-    {
-      "status": "Building",
-      "state": "Wisconsin"
-    },
-    {
-      "status": "Building",
-      "state": "Illinois"
-    },
-    {
-      "status": "Building",
-      "state": "Tennessee"
-    },
-    {
-      "status": "Building",
-      "state": "North Carolina"
-    },
-    {
-      "status": "Building",
-      "state": "Deleware"
-    },
-    {
-      "status": "Building",
-      "state": "New York"
-    },
-    {
-      "status": "Building",
-      "state": "New Jersey"
-    },
-    {
-      "status": "Building",
-      "state": "Connecticut"
-    },
-    {
-      "status": "Building",
-      "state": "New Hampshire"
     }
   ]
 }

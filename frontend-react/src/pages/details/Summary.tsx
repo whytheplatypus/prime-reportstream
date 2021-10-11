@@ -1,5 +1,7 @@
 import ReportLink from "../daily/Table/ReportLink";
 import ReportResource from '../../resources/ReportResource'
+import { useOrgName } from "../../utils/OrganizationUtils";
+import { NavLink } from "react-router-dom";
 
 interface Props {
     /* REQUIRED
@@ -9,7 +11,8 @@ interface Props {
 }
 
 function Summary(props: Props) {
-    const { report } = props
+    const { report }: Props = props
+    const orgName: string = useOrgName()
 
     return (
         <section className="grid-container">
@@ -19,13 +22,13 @@ function Summary(props: Props) {
             >
                 <ol className="usa-breadcrumb__list">
                     <li className="usa-breadcrumb__list-item">
-                        <a
-                            href="/daily"
+                        <NavLink 
+                            to="/daily-data"
+                            key="daily"
                             className="usa-breadcrumb__link"
-                            id="orgName"
-                        >
-                            COVID-19
-                        </a>
+                            id="orgName">
+                            {orgName}
+                        </NavLink>
                     </li>
                     <li
                         className="usa-breadcrumb__list-item usa-current"

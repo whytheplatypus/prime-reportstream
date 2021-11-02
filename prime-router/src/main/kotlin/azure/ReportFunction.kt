@@ -331,7 +331,7 @@ class ReportFunction : Logging {
         actionHistory.trackEvent(processEvent)
 
         // add task to task table
-        workflowEngine.insertProcessTask(report, report.bodyFormat.toString(), report.bodyURL, processEvent)
+        workflowEngine.insertProcessTask(report, report.bodyFormat.toString(), processEvent)
     }
 
     private fun handleValidation(

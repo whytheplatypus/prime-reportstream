@@ -97,10 +97,17 @@ class WorkflowEngine(
     fun insertProcessTask(
         report: Report,
         reportFormat: String,
-        reportUrl: String,
         nextAction: Event
     ) {
-        db.insertTask(report, reportFormat, reportUrl, nextAction, null)
+        val processReport = report.copy(bodyFormat = Report.Format.INTERNAL)
+        processReport.id = report.id
+        val blobInfo = try {
+            // formatting errors can occur down in here.
+            blob.uploadBody(processReport, "processing", nextAction.eventAction)
+        } catch (ex: Exception) {
+            throw ex
+        }
+        db.insertTask(processReport, reportFormat, blobInfo.blobUrl, nextAction, null)
     }
 
     /**
@@ -401,13 +408,19 @@ class WorkflowEngine(
             val task = db.fetchAndLockTask(messageEvent.reportId, txn)
             val id = task.reportId
             val reportFile = db.fetchReportFile(id, org = null, txn)
-            val header = createHeader(task, reportFile, null, null, null)
+            val header = createHeader(task, reportFile, task.bodyUrl, null, null, null)
             val currentAction = Event.EventAction.parseQueueMessage(task.nextAction.literal)
 
             // get sender record
             val sender = settings.findSender(reportFile.sendingOrg + "." + reportFile.sendingOrgClient)
 
             //  create report
+            val report = csvSerializer.readInternal(
+                task.schemaName,
+                ByteArrayInputStream(header.content!!),
+                emptyList()
+            )
+            /*
             val report = createReport(
                 sender!!,
                 header.content!!.decodeToString(),
@@ -415,10 +428,7 @@ class WorkflowEngine(
                 errors,
                 warnings
             )
-
-            // Tech Debt - update this when we are moving to internal FHIR format
-            //  set the id in the generated report to the correct UUID for this report.
-            report!!.id = messageEvent.reportId
+            */
 
             //  send to routeReport
             routeReport(
@@ -622,6 +632,25 @@ class WorkflowEngine(
 
         val content = if (reportFile.bodyUrl != null && fetchBlobBody)
             blob.downloadBlob(reportFile.bodyUrl)
+        else null
+        return Header(task, reportFile, itemLineages, organization, receiver, schema, content)
+    }
+
+    private fun createHeader(
+        task: Task,
+        reportFile: ReportFile,
+        bodyUrl: String,
+        itemLineages: List<ItemLineage>?,
+        organization: Organization?,
+        receiver: Receiver?,
+        fetchBlobBody: Boolean = true
+    ): Header {
+        val schema = if (reportFile.schemaName != null)
+            metadata.findSchema(reportFile.schemaName)
+        else null
+
+        val content = if (bodyUrl != null && fetchBlobBody)
+            blob.downloadBlob(bodyUrl)
         else null
         return Header(task, reportFile, itemLineages, organization, receiver, schema, content)
     }

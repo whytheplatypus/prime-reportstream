@@ -411,24 +411,13 @@ class WorkflowEngine(
             val header = createHeader(task, reportFile, task.bodyUrl, null, null, null)
             val currentAction = Event.EventAction.parseQueueMessage(task.nextAction.literal)
 
-            // get sender record
-            val sender = settings.findSender(reportFile.sendingOrg + "." + reportFile.sendingOrgClient)
-
             //  create report
             val report = csvSerializer.readInternal(
                 task.schemaName,
                 ByteArrayInputStream(header.content!!),
-                emptyList()
+                emptyList(),
+                blobReportId = id
             )
-            /*
-            val report = createReport(
-                sender!!,
-                header.content!!.decodeToString(),
-                messageEvent.defaults,
-                errors,
-                warnings
-            )
-            */
 
             //  send to routeReport
             routeReport(

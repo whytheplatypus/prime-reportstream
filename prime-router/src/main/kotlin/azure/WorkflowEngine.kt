@@ -88,9 +88,6 @@ class WorkflowEngine(
             senderReportFormat, rawBody,
             blobFilename, sender.fullName, Event.EventAction.RECEIVE
         )
-
-        // set the location of the report so it can be used in the async pipeline for 'process'
-        report.bodyURL = blobInfo.blobUrl
         actionHistory.trackExternalInputReport(report, blobInfo)
     }
 

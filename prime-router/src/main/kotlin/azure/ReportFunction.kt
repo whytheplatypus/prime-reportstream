@@ -10,6 +10,7 @@ import com.microsoft.azure.functions.annotation.AuthorizationLevel
 import com.microsoft.azure.functions.annotation.FunctionName
 import com.microsoft.azure.functions.annotation.HttpTrigger
 import com.microsoft.azure.functions.annotation.StorageAccount
+import com.google.common.base.Preconditions
 import gov.cdc.prime.router.ClientSource
 import gov.cdc.prime.router.DEFAULT_SEPARATOR
 import gov.cdc.prime.router.InvalidParamMessage
@@ -326,12 +327,16 @@ class ReportFunction : Logging {
         routeTo: List<String>,
         actionHistory: ActionHistory
     ) {
+        Preconditions.checkArgument(report.bodyFormat == Report.Format.INTERNAL)
         // add 'Process' queue event to the actionHistory
         val processEvent = ProcessEvent(Event.EventAction.PROCESS, report.id, options, defaults, routeTo)
-        actionHistory.trackEvent(processEvent)
+
+        val blobInfo = workflowEngine.blob.uploadBody(report, "processing", processEvent.eventAction)
+
+        actionHistory.trackCreatedReport(processEvent, report, null, blobInfo)
 
         // add task to task table
-        workflowEngine.insertProcessTask(report, report.bodyFormat.toString(), processEvent)
+        workflowEngine.insertProcessTask(report, report.bodyFormat.toString(), processEvent, blobInfo)
     }
 
     private fun handleValidation(

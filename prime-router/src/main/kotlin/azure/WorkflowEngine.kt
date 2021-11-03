@@ -94,17 +94,10 @@ class WorkflowEngine(
     fun insertProcessTask(
         report: Report,
         reportFormat: String,
-        nextAction: Event
+        nextAction: Event,
+        blobInfo: BlobAccess.BlobInfo
     ) {
-        val processReport = report.copy(bodyFormat = Report.Format.INTERNAL)
-        processReport.id = report.id
-        val blobInfo = try {
-            // formatting errors can occur down in here.
-            blob.uploadBody(processReport, "processing", nextAction.eventAction)
-        } catch (ex: Exception) {
-            throw ex
-        }
-        db.insertTask(processReport, reportFormat, blobInfo.blobUrl, nextAction, null)
+        db.insertTask(report, reportFormat, blobInfo.blobUrl, nextAction, null)
     }
 
     /**

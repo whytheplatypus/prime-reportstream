@@ -284,7 +284,7 @@ class ActionHistory {
     fun trackCreatedReport(
         event: Event,
         report: Report,
-        receiver: Receiver,
+        receiver: Receiver?,
         blobInfo: BlobAccess.BlobInfo,
     ) {
         if (isReportAlreadyTracked(report.id)) {
@@ -295,8 +295,8 @@ class ActionHistory {
         reportFile.reportId = report.id
         reportFile.nextAction = event.eventAction.toTaskAction()
         reportFile.nextActionAt = event.at
-        reportFile.receivingOrg = receiver.organizationName
-        reportFile.receivingOrgSvc = receiver.name
+        reportFile.receivingOrg = receiver?.organizationName
+        reportFile.receivingOrgSvc = receiver?.name
         reportFile.schemaName = report.schema.name
         reportFile.schemaTopic = report.schema.topic
         reportFile.bodyUrl = blobInfo.blobUrl

@@ -578,7 +578,7 @@ abstract class CoolTest {
             val expected = totalItems / receivers.size
             receivers.forEach { receiver ->
                 // if we are processing asynchronously, look for the 'process' tasks, not 'receive
-                val actionsList = mutableListOf(if (asyncProcessMode) TaskAction.process else TaskAction.receive)
+                val actionsList = mutableListOf(TaskAction.receive, TaskAction.process)
                 // Bug:  this is looking at local cli data, but might be querying staging or prod.
                 // The hope is that the 'ignore' org is same in local, staging, prod.
                 if (receiver.timing != null) actionsList.add(TaskAction.batch)
@@ -778,7 +778,7 @@ abstract class CoolTest {
             val sql = """select action_response 
                 FROM action a
                 INNER JOIN report_file rf on a.action_id = rf.action_id
-                WHERE rf.report_id = '4628a8e1-404b-4b17-bf1d-543e194c452a'
+                WHERE rf.report_id = '$reportId'
                 AND action_name = 'process'
             """
             val resp = ctx.fetchOne(sql, reportId)
@@ -884,7 +884,7 @@ class End2End : CoolTest() {
         ugly("Starting $name Test: send ${simpleRepSender.fullName} data to $allGoodCounties")
 
         // run both sync and async end2end test
-        return forceSync(environment, options) && forceAsync(environment, options)
+        return forceAsync(environment, options)
     }
 
     private suspend fun forceSync(environment: ReportStreamEnv, options: CoolTestOptions): Boolean {
@@ -947,7 +947,7 @@ class End2End : CoolTest() {
             // force async processing
             HttpUtilities.postReportFile(environment, file, simpleRepSender, true, options.key)
         if (responseCode != HttpURLConnection.HTTP_CREATED) {
-            bad("***end2end Test FAILED***:  response code $responseCode")
+            bad("***Async end2end Test FAILED***:  response code $responseCode")
             passed = false
         } else {
             good("Posting of async report succeeded with response code $responseCode")
@@ -956,9 +956,11 @@ class End2End : CoolTest() {
         passed = passed and examinePostResponse(json, false)
         val reportId = getReportIdFromResponse(json)
         if (reportId != null) {
+            /*
             passed = passed and pollForProcessResult(reportId)
             if (!passed)
                 bad("***async end2end FAILED***: Process record not found")
+             */
             passed = passed and pollForLineageResults(
                 reportId, allGoodReceivers,
                 fakeItemCount,
@@ -993,7 +995,7 @@ class Merge : CoolTest() {
         db.transact { txn ->
             val expected = (itemsPerReport * reportIds.size) / receivers.size
             receivers.forEach { receiver ->
-                val actionsList = mutableListOf<TaskAction>()
+                val actionsList = mutableListOf<TaskAction>(TaskAction.receive, TaskAction.process)
                 if (receiver.timing != null) actionsList.add(TaskAction.batch)
                 if (receiver.transport != null) actionsList.add(TaskAction.send)
                 actionsList.forEach { action ->

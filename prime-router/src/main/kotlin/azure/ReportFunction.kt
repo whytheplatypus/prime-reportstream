@@ -163,18 +163,13 @@ class ReportFunction : Logging {
             return it
         }
 
-        var report = workflowEngine.createReport(
+        var parsedReport = workflowEngine.createReport(
             sender,
             validatedRequest.content,
             validatedRequest.defaults,
             errors,
             warnings
         )
-
-        // if we are processing a message asynchronously, the report's next action will be 'process'
-        if (isAsync && report != null) {
-            report.nextAction = TaskAction.process
-        }
 
         // checks for errors from createReport
         if (validatedRequest.options != Options.SkipInvalidItems && errors.isNotEmpty()) {
@@ -197,9 +192,13 @@ class ReportFunction : Logging {
 
         workflowEngine.recordReceivedReport(
             // should make createReport always return a report or error
-            report!!, validatedRequest.content.toByteArray(), sender,
+            parsedReport!!, validatedRequest.content.toByteArray(), sender,
             actionHistory, workflowEngine
         )
+
+        val report = parsedReport.copy(bodyFormat = Report.Format.INTERNAL)
+
+
 
         // this function call checks internally to verify that this is a covid-19 topic
         // Write the data to the table if we're dealing with covid-19. this has to happen
@@ -208,6 +207,8 @@ class ReportFunction : Logging {
 
         // call the correct processing function based on processing type
         if (isAsync) {
+            // if we are processing a message asynchronously, the report's next action will be 'process'
+            report.nextAction = TaskAction.process
             processAsync(
                 report,
                 workflowEngine,
@@ -233,7 +234,7 @@ class ReportFunction : Logging {
             errors,
             validatedRequest.verbose,
             actionHistory,
-            report
+            parsedReport
         )
         val response = HttpUtilities.createdResponse(request, responseBody)
         actionHistory.trackActionResult(response)

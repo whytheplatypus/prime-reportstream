@@ -20,8 +20,6 @@ import gov.cdc.prime.router.ResultDetail
 import gov.cdc.prime.router.Sender
 import gov.cdc.prime.router.azure.db.enums.TaskAction
 import gov.cdc.prime.router.tokens.AuthenticationStrategy
-import gov.cdc.prime.router.tokens.OktaAuthentication
-import gov.cdc.prime.router.tokens.TokenAuthentication
 import org.apache.logging.log4j.kotlin.Logging
 import org.postgresql.util.PSQLException
 import java.io.ByteArrayInputStream
@@ -105,30 +103,25 @@ class ReportFunction : Logging {
     ): HttpResponseMessage {
 
         val workflowEngine = WorkflowEngine()
+        val senderName = extractClientHeader(request)
+        if (senderName.isNullOrBlank())
+            return HttpUtilities.bad(request, "Expected a '$CLIENT_PARAMETER' query parameter")
+
+        val sender = workflowEngine.settings.findSender(senderName)
+            ?: return HttpUtilities.bad(request, "'$CLIENT_PARAMETER:$senderName': unknown sender")
+
         val authenticationStrategy = AuthenticationStrategy.authStrategy(
             request.headers["authentication-type"],
             PrincipalLevel.USER,
             workflowEngine
         )
-        val senderName = extractClientHeader(request)
-        if (senderName.isNullOrBlank())
-            return HttpUtilities.bad(request, "Expected a '$CLIENT_PARAMETER' query parameter")
-        val sender = workflowEngine.settings.findSender(senderName)
-            ?: return HttpUtilities.bad(request, "'$CLIENT_PARAMETER:$senderName': unknown sender")
-        if (authenticationStrategy is OktaAuthentication) {
-            // The report is coming from a sender that is using Okta, so set "oktaSender" to true
-            return authenticationStrategy.checkAccess(request, senderName, true) {
-                return@checkAccess ingestReport(request, context)
-            }
-        }
 
-        if (authenticationStrategy is TokenAuthentication) {
-            val claims = authenticationStrategy.checkAccessToken(request, "${sender.fullName}.report")
-                ?: return HttpUtilities.unauthorizedResponse(request)
-            logger.info("Claims for ${claims["sub"]} validated.  Beginning ingestReport.")
+        val (authenticated, _) = authenticationStrategy.checkAccess(request, senderName)
+        if (authenticated) {
             return ingestReport(request, context)
         }
-        return HttpUtilities.bad(request, "Failed authorization") // unreachable code.
+
+        return HttpUtilities.unauthorizedResponse(request)
     }
 
     private fun ingestReport(request: HttpRequestMessage<String?>, context: ExecutionContext): HttpResponseMessage {

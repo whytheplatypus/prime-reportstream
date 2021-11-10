@@ -67,7 +67,7 @@ This field is generated based on the normalcy status of the result. A = abnormal
 **Reference URL**:
 [https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification](https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification) 
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Model
 
@@ -137,7 +137,7 @@ unique id to track the usage of the message
 
 **Cardinality**: [0..1]
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Test Ordered LOINC Code
 
@@ -151,7 +151,7 @@ unique id to track the usage of the message
 
 **Cardinality**: [0..1]
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Test Ordered LOINC Long Name
 
@@ -743,6 +743,28 @@ The date which the specimen was collected. The default format is yyyyMMddHHmmssz
 
 ---
 
+**Name**: specimen_id
+
+**Type**: EI
+
+**PII**: No
+
+**HL7 Fields**
+
+- [SPM-2](https://hl7-definition.caristix.com/v2/HL7v2.5.1/Fields/SPM.2)
+
+**Cardinality**: [0..1]
+
+
+**Reference URL**:
+[https://hl7-definition.caristix.com/v2/HL7v2.5.1/Fields/SPM.2](https://hl7-definition.caristix.com/v2/HL7v2.5.1/Fields/SPM.2) 
+
+**Documentation**:
+
+A unique code for this specimen
+
+---
+
 **Name**: specimen_received_date_time
 
 **PII**: No
@@ -781,6 +803,7 @@ Code | Display
 258580003|Whole blood sample
 122555007|Venous blood specimen
 119297000|Blood specimen
+122554006|Capillary blood specimen
 
 **Documentation**:
 

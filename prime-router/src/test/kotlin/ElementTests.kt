@@ -2,11 +2,14 @@ package gov.cdc.prime.router
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isNotEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
+import assertk.assertions.isTrue
 import assertk.assertions.startsWith
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -115,7 +118,8 @@ internal class ElementTests {
         }
         mapOf(
             "20210908105903" to "20210908105903",
-            "199803300000+0000" to "19980330000000").forEach {
+            "199803300000+0000" to "19980330000000"
+        ).forEach {
             val optionalDateTime = "[yyyyMMddHHmmssZ][yyyyMMddHHmmZ][yyyyMMddHHmmss]"
             val df = DateTimeFormatter.ofPattern(optionalDateTime)
             val ta = df.parseBest(it.key, OffsetDateTime::from, LocalDateTime::from, Instant::from)
@@ -483,5 +487,143 @@ internal class ElementTests {
         ).run {
             assertThat(this.truncateIfNeeded("abcde")).isEqualTo("")
         }
+    }
+
+    @Test
+    fun `test toFormatted values for UNK`() {
+        val values = ValueSet(
+            "hl70136",
+            system = ValueSet.SetSystem.HL7,
+            values = listOf(
+                ValueSet.Value(code = "Y", display = "Yes"),
+                ValueSet.Value(code = "N", display = "No"),
+                ValueSet.Value(code = "UNK", display = "Unk")
+            )
+        )
+        val element = Element(
+            "a",
+            valueSet = "test",
+            valueSetRef = values,
+            type = Element.Type.CODE,
+            altValues = listOf(
+                ValueSet.Value(code = "Y", display = "Yes"),
+                ValueSet.Value(code = "N", display = "No"),
+                ValueSet.Value(code = "UNK", display = "Unknown")
+            )
+        )
+        element.toFormatted("UNK", "\$system").run {
+            assertThat(this).isEqualTo("NULLFL")
+        }
+    }
+
+    @Test
+    fun `test processing of raw data`() {
+        val elements = listOf(
+            Element("a", Element.Type.TEXT),
+            Element("b", Element.Type.TEXT, default = "someDefault"),
+            Element(
+                "c", Element.Type.TEXT, mapper = "concat(a,e)", mapperRef = ConcatenateMapper(),
+                mapperArgs = listOf("a", "e"), default = "someDefault"
+            ),
+            Element(
+                "d", Element.Type.TEXT, mapper = "concat(a,e)", mapperRef = ConcatenateMapper(),
+                mapperArgs = listOf("a", "e"), default = "someDefault"
+            ),
+            Element(
+                "e", Element.Type.TEXT, mapper = "concat(a,e)", mapperRef = ConcatenateMapper(),
+                mapperArgs = listOf("a", "e"), mapperOverridesValue = true, default = "someDefault"
+            ),
+            Element(
+                "f", Element.Type.TEXT, mapper = "concat(a,e,\$index)", mapperRef = ConcatenateMapper(),
+                mapperArgs = listOf("a", "e", "\$index"), mapperOverridesValue = true, default = "someDefault",
+                delimiter = "-"
+            ),
+            Element(
+                "g", Element.Type.TEXT, mapper = "concat(a,e,\$currentDate)", mapperRef = ConcatenateMapper(),
+                mapperArgs = listOf("a", "e", "\$currentDate"), mapperOverridesValue = true, default = "someDefault",
+                delimiter = "-"
+            )
+        )
+        val schema = Schema("one", "covid-19", elements)
+        val currentDate = LocalDate.now().format(Element.dateFormatter)
+        val mappedValues = mutableMapOf(
+            elements[0].name to "TEST",
+            elements[1].name to "",
+            elements[2].name to "",
+            elements[3].name to "TEST3",
+            elements[4].name to "TEST4",
+            elements[5].name to "TEST-TEST4-1",
+            elements[6].name to "TEST-TEST4-$currentDate"
+        )
+
+        // Element has value and mapperAlwaysRun is false, so we get the raw value
+        var finalValue = elements[0].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo(mappedValues[elements[0].name])
+
+        // Element with no raw value, no mapper and default returns a default.
+        finalValue = elements[1].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo(elements[1].default)
+
+        // Element with mapper and no raw value returns mapper value
+        finalValue = elements[2].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo("${mappedValues[elements[0].name]}, ${mappedValues[elements[4].name]}")
+
+        // Element with raw value and mapperAlwaysRun to false returns raw value
+        finalValue = elements[3].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo(mappedValues[elements[3].name])
+
+        // Element with raw value and mapperAlwaysRun to true returns mapper value
+        finalValue = elements[4].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo("${mappedValues[elements[0].name]}, ${mappedValues[elements[4].name]}")
+
+        // Element with $index
+        finalValue = elements[5].processValue(mappedValues, schema, emptyMap(), 1)
+        assertThat(finalValue).isEqualTo("${mappedValues[elements[5].name]}")
+
+        // Element with $currentDate
+        finalValue = elements[6].processValue(mappedValues, schema)
+        assertThat(finalValue).isEqualTo("${mappedValues[elements[6].name]}")
+    }
+
+    @Test
+    fun `test use mapper check`() {
+        val elementA = Element("a")
+        val elementB = Element("b", mapper = "concat(a,b)", mapperRef = ConcatenateMapper())
+        val elementC = Element(
+            "b", mapper = "concat(a,b)", mapperRef = ConcatenateMapper(),
+            mapperOverridesValue = true
+        )
+
+        assertThat(elementA.useMapper("")).isFalse()
+        assertThat(elementA.useMapper("dummyValue")).isFalse()
+
+        assertThat(elementB.useMapper("")).isTrue()
+        assertThat(elementB.useMapper("dummyValue")).isFalse()
+
+        assertThat(elementC.useMapper("")).isTrue()
+        assertThat(elementC.useMapper("dummyValue")).isTrue()
+    }
+
+    @Test
+    fun `test use default check`() {
+        val elementA = Element("a")
+
+        assertThat(elementA.useDefault("")).isTrue()
+        assertThat(elementA.useDefault("dummyValue")).isFalse()
+    }
+
+    @Test
+    fun `test tokenized value mapping`() {
+        val elementNameIndex = "\$index"
+        val elementNameCurrentDate = "\$currentDate"
+
+        val mockElement = Element("mock")
+        val elementAndValueIndex = mockElement.tokenizeMapperValue(elementNameIndex, 3)
+        val formatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+        val currentDate = LocalDate.now().format(formatter)
+        val elementAndValueCurrentDate = mockElement.tokenizeMapperValue(elementNameCurrentDate)
+
+        assertThat(elementAndValueIndex?.value).isEqualTo("3")
+        assertThat(elementAndValueCurrentDate?.value).isEqualTo(currentDate)
     }
 }

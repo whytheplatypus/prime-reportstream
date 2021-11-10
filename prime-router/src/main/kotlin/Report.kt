@@ -33,7 +33,8 @@ typealias DefaultValues = Map<String, String>
 const val SHUFFLE_THRESHOLD = 25
 
 // Basic size limitations on incoming reports
-const val PAYLOAD_MAX_BYTES: Long = 50 * 1000 * 1000 // Experiments show 10k HL7 Items is ~41Meg. So allow 50Meg
+// Experiments show 10k HL7 Items is ~41Meg. So allow 50Meg
+const val PAYLOAD_MAX_BYTES: Long = (50 * 1000 * 1000).toLong()
 const val REPORT_MAX_ITEMS = 10000
 const val REPORT_MAX_ITEM_COLUMNS = 2000
 const val REPORT_MAX_ERRORS = 100
@@ -60,9 +61,9 @@ class Report : Logging {
             // Default to CSV if weird or unknown
             fun safeValueOf(formatStr: String?): Format {
                 return try {
-                    Format.valueOf(formatStr ?: "CSV")
+                    valueOf(formatStr ?: "CSV")
                 } catch (e: IllegalArgumentException) {
-                    Format.CSV
+                    CSV
                 }
             }
         }
@@ -197,7 +198,7 @@ class Report : Logging {
         this.itemLineages = itemLineage
         this.createdDateTime = OffsetDateTime.now()
         this.table = createTable(schema, values)
-        this.metadata = metadata ?: Metadata.provideMetadata()
+        this.metadata = metadata ?: Metadata.getInstance()
     }
 
     constructor(
@@ -236,7 +237,7 @@ class Report : Logging {
         this.bodyFormat = bodyFormat ?: destination?.format ?: Format.INTERNAL
         this.itemLineages = itemLineage
         this.createdDateTime = OffsetDateTime.now()
-        this.metadata = Metadata.provideMetadata()
+        this.metadata = Metadata.getInstance()
     }
 
     @Suppress("Destructure")
@@ -569,6 +570,14 @@ class Report : Logging {
                     it.siteOfCare = row.getStringOrNull("site_of_care").trimToNull()
                     it.reportId = this.id
                     it.reportIndex = idx
+                    // For sender ID, use first the provided ID and if not use the client ID.
+                    it.senderId = row.getStringOrNull("sender_id").trimToNull()
+                    if (it.senderId.isNullOrBlank()) {
+                        val clientSource = sources.firstOrNull { source -> source is ClientSource } as ClientSource?
+                        if (clientSource != null) it.senderId = clientSource.name
+                    }
+                    it.testKitNameId = row.getStringOrNull("test_kit_name_id").trimToNull()
+                    it.testPerformedLoincCode = row.getStringOrNull("test_performed_code").trimToNull()
                 }
             }
         } catch (e: Exception) {
@@ -596,6 +605,12 @@ class Report : Logging {
         }
     }
 
+    /**
+     * The second pass runs any mappers as needed for the given [toElement] and the [pass1Columns] data from the first
+     * pass.  Mappers will use data from either schema as inputs.
+     * @param mapping the mapping
+     * @return the mapped column
+     */
     private fun buildColumnPass2(
         mapping: Translator.Mapping,
         toElement: Element,
@@ -603,18 +618,16 @@ class Report : Logging {
     ): StringColumn {
         val toSchema = mapping.toSchema
         val fromSchema = mapping.fromSchema
-        val index = mapping.toSchema.findElementColumn(toElement.name)
-            ?: error("Schema Error: buildColumnPass2")
-        // pass1 put a null column for columns that should use a mapper
-        return if (pass1Columns[index] != null) {
-            pass1Columns[index]!!
-        } else {
-            val mapper = mapping.useMapper[toElement.name]!!
-            val (_, args) = Mappers.parseMapperField(
-                toElement.mapper
-                    ?: error("'${toElement.mapper}' mapper is missing")
-            )
-            val values = Array(table.rowCount()) { row ->
+        val elementIndex = mapping.toSchema.findElementColumn(toElement.name)
+        val values = Array(table.rowCount()) { row ->
+            var elementValue = elementIndex?.let { pass1Columns[elementIndex]?.get(row) ?: "" } ?: ""
+            if (toElement.useMapper(elementValue)) {
+                val mapper = mapping.useMapper[toElement.name]!!
+                val (_, args) = Mappers.parseMapperField(
+                    toElement.mapper
+                        ?: error("'${toElement.mapper}' mapper is missing")
+                )
+                // Mapper input values can come from either schema
                 val inputValues = mapper.valueNames(toElement, args).mapNotNull { argName ->
                     val element = toSchema.findElement(argName)
                         ?: fromSchema.findElement(argName)
@@ -629,10 +642,12 @@ class Report : Logging {
                     if (value == null || value.isBlank()) return@mapNotNull null
                     ElementAndValue(element, value)
                 }
-                mapper.apply(toElement, args, inputValues) ?: mapping.useDefault[toElement.name] ?: ""
+                elementValue = mapper.apply(toElement, args, inputValues) ?: ""
             }
-            return StringColumn.create(toElement.name, values.asList())
+            if (toElement.useDefault(elementValue)) elementValue = mapping.useDefault[toElement.name] ?: ""
+            elementValue
         }
+        return StringColumn.create(toElement.name, values.asList())
     }
 
     private fun buildEmptyColumn(name: String): StringColumn {
@@ -691,7 +706,7 @@ class Report : Logging {
 
         fun createItemLineages(parentReports: List<Report>, childReport: Report): List<ItemLineage> {
             var childRowNum = 0
-            var itemLineages = mutableListOf<ItemLineage>()
+            val itemLineages = mutableListOf<ItemLineage>()
             parentReports.forEach { parentReport ->
                 parentReport.itemIndices.forEach {
                     itemLineages.add(createItemLineageForRow(parentReport, it, childReport, childRowNum))
@@ -704,10 +719,9 @@ class Report : Logging {
         /**
          * Use a tablesaw Selection bitmap to create a mapping from this report items to newReport items.
          * Note: A tablesaw Selection is just an array of the row indexes in the oldReport that meet the filter criteria
-         * That is, selection[childRowNum] is the parentRowNum
          */
         fun createItemLineages(selection: Selection, parentReport: Report, childReport: Report): List<ItemLineage> {
-            return selection.mapIndexed() { childRowNum, parentRowNum ->
+            return selection.mapIndexed { childRowNum, parentRowNum ->
                 createItemLineageForRow(parentReport, parentRowNum, childReport, childRowNum)
             }.toList()
         }
@@ -852,9 +866,11 @@ class Report : Logging {
         ): String {
             val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             val nameSuffix = fileFormat?.ext ?: Format.CSV.ext
-            val fileName = when (translationConfig) {
-                null -> "${Schema.formBaseName(schemaName)}-$id-${formatter.format(createdDateTime)}"
-                else -> metadata.fileNameTemplates[nameFormat.lowercase()].run {
+            val fileName = if (fileFormat == Format.INTERNAL || translationConfig == null) {
+                // This filenaming format is used for all INTERNAL files, and whenever there is no custom format.
+                "${Schema.formBaseName(schemaName)}-$id-${formatter.format(createdDateTime)}"
+            } else {
+                metadata.fileNameTemplates[nameFormat.lowercase()].run {
                     this?.getFileName(translationConfig, id)
                         ?: "${Schema.formBaseName(schemaName)}-$id-${formatter.format(createdDateTime)}"
                 }
@@ -880,7 +896,7 @@ class Report : Logging {
                     header.reportFile.schemaName,
                     header.receiver?.format ?: error("Internal Error: ${header.receiver?.name} does not have a format"),
                     header.reportFile.createdAt,
-                    metadata = Metadata.provideMetadata()
+                    metadata = Metadata.getInstance()
                 )
             }
         }
@@ -903,7 +919,7 @@ class Report : Logging {
                     schemaName,
                     format,
                     createdAt,
-                    metadata = Metadata.provideMetadata()
+                    metadata = Metadata.getInstance()
                 )
             }
         }

@@ -7,6 +7,7 @@ import com.microsoft.azure.functions.annotation.QueueTrigger
 import com.microsoft.azure.functions.annotation.StorageAccount
 import gov.cdc.prime.router.AS2TransportType
 import gov.cdc.prime.router.BlobStoreTransportType
+import gov.cdc.prime.router.FTPSTransportType
 import gov.cdc.prime.router.NullTransportType
 import gov.cdc.prime.router.RedoxTransportType
 import gov.cdc.prime.router.ReportId
@@ -31,7 +32,8 @@ const val maxRetryCount = 4
 const val maxDurationValue = 120L
 
 // index is retryCount, value is in minutes
-val retryDuration = mapOf(1 to 1L, 2 to 5L, 3 to 30L, 4 to 60L, 5 to 120L)
+// We often send every 2 hours.   Idea here is that the 4th retry occurs *before* the next round of sends, in 111 mins.
+val retryDuration = mapOf(1 to 1L, 2 to 5L, 3 to 30L, 4 to 75L, 5 to 120L)
 // Use this for testing retries:
 // val retryDuration = mapOf(1 to 1L, 2 to 1L, 3 to 1L, 4 to 1L, 5 to 1L)
 
@@ -67,7 +69,7 @@ class SendFunction(private val workflowEngine: WorkflowEngine = WorkflowEngine()
                 val serviceName = receiver.fullName
                 val nextRetryItems = mutableListOf<String>()
                 if (receiver.transport == null) {
-                    actionHistory.setActionType(TaskAction.send_error)
+                    actionHistory.setActionType(TaskAction.send_warning)
                     actionHistory.trackActionResult("Not sending $inputReportId to $serviceName: No transports defined")
                 } else {
                     val retryItems = retryToken?.items
@@ -107,6 +109,7 @@ class SendFunction(private val workflowEngine: WorkflowEngine = WorkflowEngine()
             is RedoxTransportType -> workflowEngine.redoxTransport
             is BlobStoreTransportType -> workflowEngine.blobStoreTransport
             is AS2TransportType -> workflowEngine.as2Transport
+            is FTPSTransportType -> workflowEngine.ftpsTransport
             is NullTransportType -> NullTransport()
             else -> null
         }
@@ -127,9 +130,10 @@ class SendFunction(private val workflowEngine: WorkflowEngine = WorkflowEngine()
             ReportEvent(Event.EventAction.NONE, reportId)
         } else {
             val nextRetryCount = (retryToken?.retryCount ?: 0) + 1
-            if (nextRetryCount >= maxRetryCount) {
+            if (nextRetryCount > maxRetryCount) {
                 // Stop retrying and just put the task into an error state
                 val msg = "All retries failed.  Send Error report for: $reportId to $serviceName"
+                actionHistory.setActionType(TaskAction.send_error)
                 actionHistory.trackActionResult(msg)
                 context.logger.info(msg)
                 ReportEvent(Event.EventAction.SEND_ERROR, reportId)
@@ -142,6 +146,7 @@ class SendFunction(private val workflowEngine: WorkflowEngine = WorkflowEngine()
                 val msg = "Send Failed.  Will retry sending report: $reportId to $serviceName}" +
                     " in $waitMinutes minutes and $randomSeconds seconds at $nextRetryTime"
                 context.logger.info(msg)
+                actionHistory.setActionType(TaskAction.send_warning)
                 actionHistory.trackActionResult(msg)
                 ReportEvent(Event.EventAction.SEND, reportId, nextRetryTime, nextRetryToken)
             }

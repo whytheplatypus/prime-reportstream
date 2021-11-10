@@ -63,6 +63,16 @@ This field is generated based on the normalcy status of the result. A = abnormal
 
 ---
 
+**Name**: testReportDate
+
+**Type**: DATETIME
+
+**PII**: No
+
+**Cardinality**: [0..1]
+
+---
+
 **Name**: healthcareEmployee
 
 **Type**: CODE
@@ -111,7 +121,7 @@ Override the base hl70136 valueset with a custom one, to handle slightly differe
 **Reference URL**:
 [https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification](https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification) 
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Model
 
@@ -227,7 +237,7 @@ unique id to track the usage of the message
 
 **Cardinality**: [0..1]
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Test Ordered LOINC Code
 
@@ -241,7 +251,7 @@ unique id to track the usage of the message
 
 **Cardinality**: [0..1]
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Test Ordered LOINC Long Name
 
@@ -906,6 +916,7 @@ ID name of org that is sending this data to ReportStream.  Suitable for provenan
 Code | Display
 ---- | -------
 22232009|Hospital
+2081004|Hospital ship
 32074000|Long Term Care Hospital
 224929004|Secure Hospital
 42665001|Nursing Home
@@ -919,7 +930,10 @@ Code | Display
 257628001|Hostel
 310207003|Sheltered Housing
 57656006|Penal Institution
+285113009|Religious institutional residence
+285141008|Work (environment)
 32911000|Homeless
+261665006|Unknown
 
 **Documentation**:
 
@@ -999,6 +1013,7 @@ Code | Display
 258580003|Whole blood sample
 122555007|Venous blood specimen
 119297000|Blood specimen
+122554006|Capillary blood specimen
 
 **Documentation**:
 
@@ -1126,7 +1141,7 @@ Is the test authorized for unproctored administration by the FDA (Y, N, UNK)
 **Reference URL**:
 [https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification](https://confluence.hl7.org/display/OO/Proposed+HHS+ELR+Submission+Guidance+using+HL7+v2+Messages#ProposedHHSELRSubmissionGuidanceusingHL7v2Messages-DeviceIdentification) 
 
-**Table**: LIVD-SARS-CoV-2-2021-08-11
+**Table**: LIVD-SARS-CoV-2-2021-09-29
 
 **Table Column**: Testkit Name ID
 
@@ -1175,16 +1190,6 @@ The result of the test performed. For IgG, IgM and CT results that give a numeri
 ---
 
 **Name**: testResultDate
-
-**Type**: DATETIME
-
-**PII**: No
-
-**Cardinality**: [0..1]
-
----
-
-**Name**: testReportDate
 
 **Type**: DATETIME
 

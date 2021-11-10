@@ -25,6 +25,7 @@ class FileSettingsTests {
                 - name: elr
                   organizationName: phd1
                   topic: test
+                  customerStatus: active
                   jurisdictionalFilter: [ "matches(a, 1)"]
                   deidentify: false
                   translation:
@@ -45,6 +46,7 @@ class FileSettingsTests {
                   - name: elr
                     organizationName: phd1
                     topic: test
+                    customerStatus: active
                     jurisdictionalFilter: [ "matches(a, 1)"]
                     deidentify: false
                     timing:
@@ -60,6 +62,7 @@ class FileSettingsTests {
                   - name: sender
                     organizationName: phd1
                     topic: topic
+                    customerStatus: active
                     schemaName: one
                     format: CSV
     """.trimIndent()
@@ -91,7 +94,7 @@ class FileSettingsTests {
                 countyName = null,
                 senders = listOf(),
                 receivers = listOf(
-                    Receiver("elr", "single", "topic", "schema")
+                    Receiver("elr", "single", "topic", CustomerStatus.INACTIVE, "schema")
                 )
             )
         )
@@ -102,18 +105,6 @@ class FileSettingsTests {
     @Test
     fun `test loading local settings`() {
         val settings = FileSettings(FileSettings.defaultSettingsDirectory)
-        assertThat(settings).isNotNull()
-    }
-
-    @Test
-    fun `test loading test settings`() {
-        val settings = FileSettings(FileSettings.defaultSettingsDirectory, "-test")
-        assertThat(settings).isNotNull()
-    }
-
-    @Test
-    fun `test loading prod settings`() {
-        val settings = FileSettings(FileSettings.defaultSettingsDirectory, "-prod")
         assertThat(settings).isNotNull()
     }
 
@@ -153,7 +144,7 @@ class FileSettingsTests {
         val org1 = DeepOrganization(
             "test", "test", Organization.Jurisdiction.FEDERAL, null, null,
             receivers = listOf(
-                Receiver("service1", "test", "topic1", "schema1"),
+                Receiver("service1", "test", "topic1", CustomerStatus.INACTIVE, "schema1"),
             )
         )
         val settings = FileSettings().also {
@@ -171,8 +162,8 @@ class FileSettingsTests {
         val org1 = DeepOrganization(
             "test", "test", Organization.Jurisdiction.FEDERAL, null, null,
             receivers = listOf(
-                Receiver("service1", "test", "topic1", "schema1"),
-                Receiver("service1", "test", "topic1", "schema1")
+                Receiver("service1", "test", "topic1", CustomerStatus.INACTIVE, "schema1"),
+                Receiver("service1", "test", "topic1", CustomerStatus.INACTIVE, "schema1")
             )
         )
         assertThat {

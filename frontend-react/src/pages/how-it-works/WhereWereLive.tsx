@@ -1,10 +1,23 @@
-import live from "../../content/live.json";
+// @ts-nocheck // TODO: fix types in this file
+import DOMPurify from "dompurify";
+import { Helmet } from "react-helmet";
+
 import site from "../../content/site.json";
-import CdcMap from "@cdc/map";
+// NOTE: update live.json and open usa_w_territories.svg with TEXT EDITOR and uncomment state styles
+// @ts-ignore
+import live from "../../content/live.json";
+// @ts-ignore
+import usamapsvg from "../../content/usa_w_territories.svg"; // in /content dir to get unique filename per build
 
 export const WhereWereLive = () => {
     return (
         <>
+            <Helmet>
+                <title>
+                    Where we're live | How it works |{" "}
+                    {process.env.REACT_APP_TITLE}
+                </title>
+            </Helmet>
             <section id="anchor-top">
                 <h1 className="margin-top-0">Where we're live</h1>
 
@@ -14,15 +27,21 @@ export const WhereWereLive = () => {
                 </p>
                 <p className="usa-intro">
                     Don’t see your state or territory?{" "}
-                    <a href={
-                        "mailto:" +
-                        site.orgs.RS.email +
-                        "?subject=Getting started with ReportStream"
-                    } className="margin-left-1">Get in touch</a>.
+                    <a
+                        href={
+                            "mailto:" +
+                            DOMPurify.sanitize(site.orgs.RS.email) +
+                            "?subject=Getting started with ReportStream"
+                        }
+                        className="margin-left-1"
+                    >
+                        Get in touch
+                    </a>
+                    .
                 </p>
             </section>
             <section>
-                <CdcMap config={live} />
+                <img src={usamapsvg} alt="Map of states using ReportStream" />
                 ReportStream has established connections to send and report
                 public health data for each of the states and territories listed
                 here.

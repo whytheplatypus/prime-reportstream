@@ -1747,10 +1747,10 @@
   dependencies:
     "@babel/runtime" "^7.7.2"
 
-"@rest-hooks/test@^7.1.0":
-  version "7.1.0"
-  resolved "https://registry.yarnpkg.com/@rest-hooks/test/-/test-7.1.0.tgz#c9e152b027d36f94ca36f0f12b8da17aa1375819"
-  integrity sha512-+W8pKdn8XhBv78q/P9QhM83WUnWcH9+DJhsBjO65fC8PwxEduQ9eV4Q8M7WTESW5EJODi6wFy0j8sXAT0E8SKw==
+"@rest-hooks/test@^7.3.0":
+  version "7.3.0"
+  resolved "https://registry.yarnpkg.com/@rest-hooks/test/-/test-7.3.0.tgz#4ad2bb55e17e16be2020e23cffbd660f56919abf"
+  integrity sha512-YiwkXcQDp2rPRUPKYVHEuTH3GmwSLNRcqY4ZgEkAiqMncfYFRvqwl7R9a49R9b/vwBOopCet4T7pB5Eh3XVMUQ==
   dependencies:
     "@testing-library/react-hooks" "~7.0.0"
 

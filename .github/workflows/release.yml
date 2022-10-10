@@ -22,7 +22,7 @@ jobs:
       POSTGRES_PASSWORD: changeIT!
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Set Environment Variables
         run: |
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Use Node.js ${{ matrix.node-version }} yarn
         uses: actions/setup-node@v2
@@ -110,7 +110,7 @@ jobs:
       PREFIX: rkh5012
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Download Router Artifact
         uses: actions/download-artifact@v2
@@ -201,7 +201,7 @@ jobs:
       PREFIX: pdhtest
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Download Router Artifact
         uses: actions/download-artifact@v2
@@ -293,7 +293,7 @@ jobs:
       PREFIX: pdhstaging
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Download Router Artifact
         uses: actions/download-artifact@v2
@@ -385,7 +385,7 @@ jobs:
       PREFIX: pdhprod
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Download Router Artifact
         uses: actions/download-artifact@v2

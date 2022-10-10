@@ -18,7 +18,7 @@ jobs:
       has_react_change: ${{ steps.skip_check.outputs.frontend_react }}
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
       - uses: dorny/paths-filter@v2
         id: skip_check
         with:
@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Run Build Script
         run: bash ci_build.bash
@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: "Check out changes"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
 
       - name: Use Node.js ${{ matrix.node-version }} with yarn
         uses: actions/setup-node@v2
